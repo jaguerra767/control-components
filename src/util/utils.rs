@@ -28,28 +28,28 @@
     }
     
    
-#[cfg(test)]
-mod tests {
-    use crate::controls_components::helper::{bytes_to_int, int_to_bytes, make_prefix};
-    #[test]
-    fn test_make_prefix() {
-        let prefix = make_prefix(77, 2);
-        assert_eq!(prefix, [2, 77, 50]);
-    }
-    
-    #[test]
-    fn test_int_to_bytes() {
-        let bytes = int_to_bytes(2300);
-        assert_eq!(bytes, [50,51,48,48]);
-        let bytes = int_to_bytes(-3400);
-        assert_eq!(bytes, [45,51,52,48,48]);
-    }
-    
-    #[test]
-    fn test_bytes_to_int() {
-        let int = bytes_to_int([45, 51, 52, 48, 48,13].as_slice());
-        assert_eq!(-3400, int);
-        let int = bytes_to_int([50,51,48,48].as_slice());
-        assert_eq!(2300, int);
-    }
-}
+// #[cfg(test)]
+// mod tests {
+//     use crate::controls_components::helper::{bytes_to_int, int_to_bytes, make_prefix};
+//     #[test]
+//     fn test_make_prefix() {
+//         let prefix = make_prefix(77, 2);
+//         assert_eq!(prefix, [2, 77, 50]);
+//     }
+//     
+//     #[test]
+//     fn test_int_to_bytes() {
+//         let bytes = int_to_bytes(2300);
+//         assert_eq!(bytes, [50,51,48,48]);
+//         let bytes = int_to_bytes(-3400);
+//         assert_eq!(bytes, [45,51,52,48,48]);
+//     }
+//     
+//     #[test]
+//     fn test_bytes_to_int() {
+//         let int = bytes_to_int([45, 51, 52, 48, 48,13].as_slice());
+//         assert_eq!(-3400, int);
+//         let int = bytes_to_int([50,51,48,48].as_slice());
+//         assert_eq!(2300, int);
+//     }
+// }

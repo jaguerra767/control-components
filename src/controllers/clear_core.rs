@@ -1,14 +1,14 @@
 use std::error::Error;
 use tokio::sync::{mpsc, oneshot};
 use crate::util::utils::{int_to_byte, int_to_bytes};
-use crate::tcp_client::Message;
+
 
 const STX: u8 = 2;
 const CR: u8 = 13;
 
 pub struct Message {
-    pub buffer: Vec<u8>,
-    pub response: oneshot::Sender<Vec<u8>>,
+    buffer: Vec<u8>,
+    response: oneshot::Sender<Vec<u8>>,
 }
 
 
@@ -84,10 +84,6 @@ impl HBridge {
         cmd.push(13);
         cmd
     }
-}
-
-pub struct Motor {
-    id: u8,
 }
 
 
