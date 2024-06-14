@@ -1,7 +1,7 @@
 use std::error::Error;
 use std::result::Result;
 pub use std::time::Duration;
-use crate::util::utils::{make_prefix, int_to_bytes, bytes_to_int};
+use crate::util::utils::{make_prefix, int_to_bytes, ascii_to_int};
 use crate::controllers::clear_core::{Controller};
 
 
@@ -148,7 +148,7 @@ impl ClearCoreMotor {
     pub async fn get_position(&self) -> Result<isize, Box<dyn Error>> {
         let get_pos_cmd = [2, b'M', self.id + 48, b'G', b'P', 13];
         let res = self.drive.write(get_pos_cmd.as_slice()).await?;
-        Ok(bytes_to_int(res.as_slice()))
+        Ok(ascii_to_int(res.as_slice()))
     }
 
     pub async fn clear_alerts(&self) -> Result<(), Box<dyn Error>> {

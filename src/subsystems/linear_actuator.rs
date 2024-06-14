@@ -8,7 +8,7 @@ use crate::controllers::clear_core::{
     HBridge, 
     HBridgeState
 };
-use crate::util::utils::{bytes_to_int};
+use crate::util::utils::{ascii_to_int};
 #[allow(unused_imports)]
 pub use crate::controllers::clear_core::Message;
 
@@ -37,7 +37,7 @@ pub struct SimpleLinearActuator {
 impl LinearActuator for SimpleLinearActuator {
     async fn get_feedback(&self) -> Result<isize, Box<dyn Error>> {
         let res = self.drive.write(self.feedback.cmd.as_slice()).await?;
-        Ok(bytes_to_int(&res[2..]))
+        Ok(ascii_to_int(&res[2..]))
     }
 
     async fn actuate(&self, state: HBridgeState) -> Result<(), Box<dyn Error>> {
@@ -79,7 +79,7 @@ impl MPlexActuatorPair {
             }
         };
         let res = self.drive.write(feedback.cmd.as_slice()).await?;
-        Ok(bytes_to_int(&res[2..]))
+        Ok(ascii_to_int(&res[2..]))
     }
     
     pub async fn actuate(&self, channel: ActuatorCh, power: HBridgeState) -> Result<(), Box<dyn Error>> {
@@ -133,10 +133,10 @@ impl LinearActuator for RelayHBridge {
     
     async fn get_feedback(&self) -> Result<isize, Box<dyn Error>> {
         let reply = self.drive.write(self.fb_pair.0.cmd.as_slice()).await?;
-        let mut position = bytes_to_int(&reply[2..]);
+        let mut position = ascii_to_int(&reply[2..]);
         if let Some(fb) = &self.fb_pair.1 {
             let res_b = self.drive.write(fb.cmd.as_slice()).await?;
-            let pos_b = bytes_to_int(&res_b[3..]);
+            let pos_b = ascii_to_int(&res_b[3..]);
             position = (position + pos_b)/2
         }
         Ok(position)
