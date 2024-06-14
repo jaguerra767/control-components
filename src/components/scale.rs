@@ -5,7 +5,6 @@ use std::error::Error;
 use linalg::{LinearSystem, MatrixError};
 
 const TIMEOUT: Duration = phidget::TIMEOUT_DEFAULT;
-//TODO: Separate LoadCell and Scale into components and subsystems directories respectively
 struct LoadCell {
     phidget_id: i32,
     channel_id: i32,
@@ -39,7 +38,6 @@ impl LoadCell {
 }
 
 pub struct Scale {
-    phidget_id: i32,
     cells: [LoadCell; 4],
     pub cell_coefficients: Vec<Vec<f64>>,
     tare_offset: f64,
@@ -55,7 +53,6 @@ impl Scale {
         ];
         
         Ok(Self {
-            phidget_id,
             cells,
             // filler coefficients for now
             cell_coefficients: vec![vec![1.]; 4],
@@ -82,7 +79,7 @@ impl Scale {
     fn get_medians(&self, samples: usize, sample_rate: usize) -> Result<Vec<Vec<f64>>, Box<dyn Error>> {
         let mut readings: Vec<Vec<f64>> = vec![vec![]; 4];
         let mut medians = vec![0.; 4];
-        let delay = time::Duration::from_millis(1000/sample_rate as u64);
+        let delay = Duration::from_millis(1000/sample_rate as u64);
         let _start_time = time::Instant::now();
         for _sample in 0..samples {
             for cell in 0..self.cells.len() {
@@ -112,7 +109,7 @@ impl Scale {
 
     pub fn weight_by_median(&self, samples: usize, sample_rate: usize) -> Result<f64, Box<dyn Error>> {
         let mut weights = Vec::new();
-        let delay = time::Duration::from_millis(1000/sample_rate as u64);
+        let delay = Duration::from_millis(1000/sample_rate as u64);
         let _start_time = time::Instant::now();
         for _sample in 0..samples {
             weights.push(self.live_weigh()?);
@@ -161,12 +158,12 @@ impl Scale {
 pub enum ScaleError {
     LoadCellError,
     MatrixError(MatrixError),
-    IoError(std::io::Error),
+    IoError(io::Error),
 }
 
 #[test]
 fn create_load_cell() -> Result<(), Box<dyn Error>> {
-    let cell = LoadCell::new(716709, 0)?;
+    LoadCell::new(716709, 0)?;
     Ok(())
 }
 
@@ -188,8 +185,7 @@ fn read_load_cell() -> Result<(), Box<dyn Error>> {
 
 #[test]
 fn create_scale() -> Result<(), Box<dyn Error>> {
-    let scale = Scale::new(716709)?;
-    // println!("{:?}", scale.phidget_id);
+    Scale::new(716709)?;
     Ok(())
 }
 
@@ -244,7 +240,6 @@ fn calibrate_scale() -> Result<(), Box<dyn Error>> {
     let mut scale = Scale::new(716709)?;
     scale.connect()?;
     scale.calibrate(437.7, 1000, 100)?;
-
     Ok(())
 }
 

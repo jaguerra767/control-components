@@ -3,6 +3,10 @@ name = "control-components"
 version = "0.1.0"
 edition = "2021"
 
+[lib]
+name = "control_components"
+path = "src/lib.rs"
+
 [dependencies]
 phidget = "0.1.4"
 tokio = { version = "1.38.0", features = ["full"] }

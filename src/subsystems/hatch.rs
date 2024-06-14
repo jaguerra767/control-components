@@ -1,7 +1,7 @@
 use std::error::Error;
 use std::time::Duration;
 use tokio::time::Instant;
-use crate::controllers::clear_core::HBridgeState;
+use crate::components::clear_core_io::HBridgeState;
 use crate::subsystems::linear_actuator::{LinearActuator};
 
 pub struct Hatch<T: LinearActuator> {

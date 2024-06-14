@@ -1,15 +1,12 @@
 use std::error::Error;
 use std::future::Future;
-use crate::controllers::clear_core::{
-    Controller, 
-    Input, 
-    Output, 
-    OutputState, 
+use crate::components::clear_core_io::{
+    HBridgeState, 
     HBridge, 
-    HBridgeState
+    AnalogInput, 
+    Output, 
+    OutputState
 };
-use crate::util::utils::{ascii_to_int};
-#[allow(unused_imports)]
 pub use crate::controllers::clear_core::Message;
 
 
@@ -21,7 +18,7 @@ const ACTUONIX_LA_MAX_STROKE: isize = 34000;
 const ACTUONIX_LA_MIN_STROKE: isize = 400;
 //TODO: Move this to a hatches module
 #[allow(unused)]
-const CLEAR_CORE_H_BRIDGE_MAX: i16 = 32760;
+
 
 pub trait LinearActuator {
     fn get_feedback(&self) -> impl Future<Output = Result<isize, Box<dyn Error>>> + Send;
@@ -30,25 +27,23 @@ pub trait LinearActuator {
 
 pub struct SimpleLinearActuator {
     output: HBridge,
-    feedback: Input,
-    drive: Controller,
+    feedback: AnalogInput,
 }
 
 impl LinearActuator for SimpleLinearActuator {
     async fn get_feedback(&self) -> Result<isize, Box<dyn Error>> {
-        let res = self.drive.write(self.feedback.cmd.as_slice()).await?;
-        Ok(ascii_to_int(&res[2..]))
+        self.feedback.get_state().await
     }
 
     async fn actuate(&self, state: HBridgeState) -> Result<(), Box<dyn Error>> {
-        self.drive.write(self.output.command_builder(state).as_slice()).await?;
-        Ok(())
+        self.output.set_state(state).await
     }
+    
 }
 
 impl SimpleLinearActuator {
-    pub fn new(output: HBridge, feedback: Input, drive: Controller) -> Self {
-        SimpleLinearActuator { output, feedback, drive}
+    pub fn new(output: HBridge, feedback: AnalogInput) -> Self {
+        SimpleLinearActuator { output, feedback }
     }
 }
 
@@ -59,15 +54,17 @@ pub enum ActuatorCh {
 }
 pub struct MPlexActuatorPair {
     output_pair: (Output, HBridge),
-    feedback_pair: (Input, Input),
-    drive: Controller
+    feedback_pair: (AnalogInput, AnalogInput),
 }
 
 
 
 impl MPlexActuatorPair {
-    pub fn new(output_pair: (Output,HBridge), feedback_pair:(Input,Input), drive: Controller) -> Self {
-        MPlexActuatorPair{ output_pair, feedback_pair, drive }
+    pub fn new(
+        output_pair: (Output,HBridge), 
+        feedback_pair:(AnalogInput,AnalogInput),
+    ) -> Self {
+        MPlexActuatorPair{ output_pair, feedback_pair }
     }
     pub async fn get_feedback(&self, channel: ActuatorCh) -> Result<isize, Box<dyn Error>> {
         let feedback = match channel{
@@ -78,8 +75,7 @@ impl MPlexActuatorPair {
                 &self.feedback_pair.1
             }
         };
-        let res = self.drive.write(feedback.cmd.as_slice()).await?;
-        Ok(ascii_to_int(&res[2..]))
+        feedback.get_state().await
     }
     
     pub async fn actuate(&self, channel: ActuatorCh, power: HBridgeState) -> Result<(), Box<dyn Error>> {
@@ -87,10 +83,8 @@ impl MPlexActuatorPair {
             ActuatorCh::Cha => OutputState::On,
             ActuatorCh::Chb => OutputState::Off
         };
-        let relay_cmd = self.output_pair.0.command_builder(relay_state);
-        self.drive.write(relay_cmd.as_slice()).await?;
-        let h_bridge_cmd = self.output_pair.1.command_builder(power);
-        self.drive.write(h_bridge_cmd.as_slice()).await?;
+        self.output_pair.0.set_state(relay_state).await?;
+        self.output_pair.1.set_state(power).await?;
         Ok(())
     }
 }
@@ -109,34 +103,30 @@ impl LinearActuator for  MPlexActuator {
     }
 }
 pub struct RelayHBridge {
-    fb_pair: (Input,Option<Input>),
+    fb_pair: (AnalogInput,Option<AnalogInput>),
     output_pair: (Output,Output),
-    drive: Controller
 }
 
 
 impl RelayHBridge {
-    pub fn new(feedback: Input, output_pair: (Output, Output), drive: Controller) -> Self {
-        Self { fb_pair: (feedback, None), output_pair, drive }
+    pub fn new(feedback: AnalogInput, output_pair: (Output, Output)) -> Self {
+        Self { fb_pair: (feedback, None), output_pair }
     }
 
     pub fn with_dual_feedback(
-        feedback: (Input, Input),
+        feedback: (AnalogInput, AnalogInput),
         output_pair: (Output, Output),
-        drive: Controller
     ) -> Self {
-        Self { fb_pair: (feedback.0, Some(feedback.1)), output_pair, drive }
+        Self { fb_pair: (feedback.0, Some(feedback.1)), output_pair }
     }
 }
 
 impl LinearActuator for RelayHBridge {
     
     async fn get_feedback(&self) -> Result<isize, Box<dyn Error>> {
-        let reply = self.drive.write(self.fb_pair.0.cmd.as_slice()).await?;
-        let mut position = ascii_to_int(&reply[2..]);
+        let mut position = self.fb_pair.0.get_state().await?;
         if let Some(fb) = &self.fb_pair.1 {
-            let res_b = self.drive.write(fb.cmd.as_slice()).await?;
-            let pos_b = ascii_to_int(&res_b[3..]);
+            let pos_b = fb.get_state().await?;
             position = (position + pos_b)/2
         }
         Ok(position)
@@ -145,19 +135,14 @@ impl LinearActuator for RelayHBridge {
     async fn actuate(&self, power: HBridgeState) -> Result<(), Box<dyn Error>> {
         match power {
             HBridgeState::Pos => {
-                let msg_a = self.output_pair.0.command_builder(OutputState::On);
-                self.drive.write(msg_a.as_slice()).await?;
-
+                self.output_pair.0.set_state(OutputState::On).await?;
             }
             HBridgeState::Neg => {
-                let msg_b = self.output_pair.1.command_builder(OutputState::On);
-                self.drive.write(msg_b.as_slice()).await?;
+                self.output_pair.1.set_state(OutputState::On).await?;
             }
             HBridgeState::Off => {
-                let msg_a = self.output_pair.0.command_builder(OutputState::Off);
-                let msg_b = self.output_pair.1.command_builder(OutputState::Off);
-                self.drive.write(msg_a.as_slice()).await?;
-                self.drive.write(msg_b.as_slice()).await?;
+                self.output_pair.0.set_state(OutputState::Off).await?;
+                self.output_pair.1.set_state(OutputState::Off).await?;
             }
         }
         Ok(())

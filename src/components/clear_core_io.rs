@@ -2,6 +2,8 @@ use std::error::Error;
 use crate::util::utils::{ascii_to_int, int_to_byte, int_to_bytes};
 use crate::controllers::clear_core::{STX, CR, Controller};
 
+#[allow(unused)]
+const CLEAR_CORE_H_BRIDGE_MAX: i16 = 32760;
 
 pub struct DigitalInput{
     cmd: [u8;4],
@@ -13,7 +15,7 @@ impl DigitalInput {
         let cmd = [STX, b'I', int_to_byte(id), CR];
         Self{ cmd, drive }
     }
-    
+
     pub async fn get_state(&self) -> Result<bool, Box<dyn Error>> {
          let res = self.drive.write(self.cmd.as_slice()).await?;
         Ok(ascii_to_int(&res[3..]) == 1)
@@ -101,8 +103,8 @@ impl HBridge {
         cmd
     }
 
-    pub async fn set_state(&self, state: HBridgeState) -> Result<isize, Box<dyn Error>> {
-        let res = self.drive.write(self.command_builder(state).as_slice()).await?;
-        Ok(ascii_to_int(&res[3..]))
+    pub async fn set_state(&self, state: HBridgeState) -> Result<(), Box<dyn Error>> {
+        self.drive.write(self.command_builder(state).as_slice()).await?;
+        Ok(())
     }
 }
