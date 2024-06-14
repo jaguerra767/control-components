@@ -25,12 +25,12 @@ pub trait LinearActuator {
     fn actuate(&self, power: HBridgeState) -> impl Future<Output = Result<(), Box<dyn Error>>> + Send;
 }
 
-pub struct SimpleLinearActuator {
-    output: HBridge,
-    feedback: AnalogInput,
+pub struct SimpleLinearActuator <'a> {
+    output: HBridge<'a>,
+    feedback: AnalogInput<'a>,
 }
 
-impl LinearActuator for SimpleLinearActuator {
+impl <'a> LinearActuator  for SimpleLinearActuator <'a> {
     async fn get_feedback(&self) -> Result<isize, Box<dyn Error>> {
         self.feedback.get_state().await
     }
@@ -41,8 +41,8 @@ impl LinearActuator for SimpleLinearActuator {
     
 }
 
-impl SimpleLinearActuator {
-    pub fn new(output: HBridge, feedback: AnalogInput) -> Self {
+impl <'a> SimpleLinearActuator <'a> {
+    pub fn new(output: HBridge<'a>, feedback: AnalogInput<'a>) -> Self {
         SimpleLinearActuator { output, feedback }
     }
 }
@@ -52,17 +52,17 @@ pub enum ActuatorCh {
     Cha,
     Chb
 }
-pub struct MPlexActuatorPair {
-    output_pair: (Output, HBridge),
-    feedback_pair: (AnalogInput, AnalogInput),
+pub struct MPlexActuatorPair<'a> {
+    output_pair: (Output<'a>, HBridge<'a>),
+    feedback_pair: (AnalogInput<'a>, AnalogInput<'a>),
 }
 
 
 
-impl MPlexActuatorPair {
+impl<'a> MPlexActuatorPair<'a> {
     pub fn new(
-        output_pair: (Output,HBridge), 
-        feedback_pair:(AnalogInput,AnalogInput),
+        output_pair: (Output<'a>,HBridge<'a>), 
+        feedback_pair:(AnalogInput<'a>,AnalogInput<'a>),
     ) -> Self {
         MPlexActuatorPair{ output_pair, feedback_pair }
     }
@@ -89,12 +89,12 @@ impl MPlexActuatorPair {
     }
 }
 
-pub struct MPlexActuator{
+pub struct MPlexActuator<'a>{
     channel: ActuatorCh,
-    actuator_pair: MPlexActuatorPair
+    actuator_pair: MPlexActuatorPair<'a>
 }
 
-impl LinearActuator for  MPlexActuator {
+impl <'a> LinearActuator for  MPlexActuator <'a> {
     async fn get_feedback(&self) -> Result<isize, Box<dyn Error>> {
         self.actuator_pair.get_feedback(self.channel).await
     }
@@ -103,19 +103,19 @@ impl LinearActuator for  MPlexActuator {
     }
 }
 pub struct RelayHBridge {
-    fb_pair: (AnalogInput,Option<AnalogInput>),
-    output_pair: (Output,Output),
+    fb_pair: (AnalogInput<'static>,Option<AnalogInput<'static>>),
+    output_pair: (Output<'static>,Output<'static>),
 }
 
 
-impl RelayHBridge {
-    pub fn new(feedback: AnalogInput, output_pair: (Output, Output)) -> Self {
-        Self { fb_pair: (feedback, None), output_pair }
+impl <'a> RelayHBridge {
+    pub fn new(feedback: AnalogInput<'static>, output_pair: (Output<'static>, Output<'static>)) -> Self {
+        RelayHBridge { fb_pair: (feedback, None), output_pair }
     }
 
     pub fn with_dual_feedback(
-        feedback: (AnalogInput, AnalogInput),
-        output_pair: (Output, Output),
+        feedback: (AnalogInput<'static>, AnalogInput<'static>),
+        output_pair: (Output<'static>, Output<'static>),
     ) -> Self {
         Self { fb_pair: (feedback.0, Some(feedback.1)), output_pair }
     }

@@ -114,7 +114,7 @@ impl <'a> ClearCoreMotor <'a> {
         let accel = int_to_bytes(acceleration * self.scale);
         let mut msg: Vec<u8> = Vec::with_capacity(accel.len() + self.prefix.len()+1);
         msg.extend_from_slice(self.prefix.as_slice());
-        msg.extend_from_slice(b"SV");
+        msg.extend_from_slice(b"SA");
         msg.extend_from_slice(accel.as_slice());
         msg.push(13);
         self.drive.write(msg.as_slice()).await?;
@@ -125,7 +125,7 @@ impl <'a> ClearCoreMotor <'a> {
         let accel = int_to_bytes(deceleration * self.scale);
         let mut msg: Vec<u8> = Vec::with_capacity(accel.len() + self.prefix.len()+1);
         msg.extend_from_slice(self.prefix.as_slice());
-        msg.extend_from_slice(b"SV");
+        msg.extend_from_slice(b"SD");
         msg.extend_from_slice(accel.as_slice());
         msg.push(13);
         self.drive.write(msg.as_slice()).await?;

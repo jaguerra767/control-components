@@ -22,13 +22,13 @@ impl <'a> DigitalInput<'a> {
     }
 }
 
-pub struct AnalogInput{
+pub struct AnalogInput <'a>{
     cmd: [u8;4],
-    drive: Controller
+    drive: &'a Controller
 }
 
-impl AnalogInput {
-    pub fn new(id: u8, drive: Controller) -> Self {
+impl <'a> AnalogInput <'a> {
+    pub fn new(id: u8, drive: &'a Controller) -> Self {
         let cmd = [STX, b'I', int_to_byte(id), CR];
         Self{ cmd, drive }
     }
@@ -45,14 +45,14 @@ pub enum OutputState {
     On
 }
 
-pub struct Output{
+pub struct Output<'a>{
     on_cmd: [u8; 9],
     off_cmd: [u8; 9],
-    drive: Controller
+    drive: &'a Controller
 }
 
-impl Output {
-    pub fn new(id: u8, drive: Controller) -> Self {
+impl <'a> Output <'a> {
+    pub fn new(id: u8, drive: &'a Controller) -> Self {
         let on_cmd = [STX, b'O', int_to_byte(id), b'3' , b'2', b'7', b'0', b'0', CR];
         let off_cmd = [STX, b'O', int_to_byte(id), b'0', CR, 0, 0, 0, 0];
         Self{on_cmd, off_cmd, drive}
@@ -78,14 +78,14 @@ pub enum HBridgeState {
     Off
 }
 
-pub struct HBridge {
+pub struct HBridge <'a> {
     power: i16,
     prefix: [u8;3],
-    drive: Controller
+    drive: &'a Controller
 }
 
-impl HBridge {
-    pub fn new(id: u8, power: i16, drive: Controller) -> Self {
+impl <'a> HBridge <'a> {
+    pub fn new(id: u8, power: i16, drive: &'a Controller) -> Self {
         let prefix = [STX, b'O', int_to_byte(id)];
         Self{power, prefix, drive}
     }
