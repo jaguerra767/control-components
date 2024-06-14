@@ -1,5 +1,5 @@
 
-    pub const fn make_prefix(device_type: u8, device_id: u8) -> [u8;3] {
+pub const fn make_prefix(device_type: u8, device_id: u8) -> [u8;3] {
         [2, device_type, device_id + 48]
     }
     
@@ -26,8 +26,7 @@
             });
         int * sign
     }
-    
-   
+
 // #[cfg(test)]
 // mod tests {
 //     use crate::controls_components::helper::{bytes_to_int, int_to_bytes, make_prefix};
@@ -36,7 +35,7 @@
 //         let prefix = make_prefix(77, 2);
 //         assert_eq!(prefix, [2, 77, 50]);
 //     }
-//     
+//
 //     #[test]
 //     fn test_int_to_bytes() {
 //         let bytes = int_to_bytes(2300);
@@ -44,7 +43,7 @@
 //         let bytes = int_to_bytes(-3400);
 //         assert_eq!(bytes, [45,51,52,48,48]);
 //     }
-//     
+//
 //     #[test]
 //     fn test_bytes_to_int() {
 //         let int = bytes_to_int([45, 51, 52, 48, 48,13].as_slice());

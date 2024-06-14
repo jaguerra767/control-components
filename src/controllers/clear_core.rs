@@ -7,8 +7,8 @@ const STX: u8 = 2;
 const CR: u8 = 13;
 
 pub struct Message {
-    buffer: Vec<u8>,
-    response: oneshot::Sender<Vec<u8>>,
+    pub buffer: Vec<u8>,
+    pub response: oneshot::Sender<Vec<u8>>,
 }
 
 
