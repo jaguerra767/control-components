@@ -5,13 +5,13 @@ use crate::controllers::clear_core::{STX, CR, Controller};
 #[allow(unused)]
 const CLEAR_CORE_H_BRIDGE_MAX: i16 = 32760;
 
-pub struct DigitalInput{
+pub struct DigitalInput<'a>{
     cmd: [u8;4],
-    drive: Controller
+    drive: &'a Controller
 }
 
-impl DigitalInput {
-    pub fn new(id: u8, drive: Controller) -> Self {
+impl <'a> DigitalInput<'a> {
+    pub fn new(id: u8, drive: &'a Controller) -> Self {
         let cmd = [STX, b'I', int_to_byte(id), CR];
         Self{ cmd, drive }
     }
