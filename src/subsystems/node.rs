@@ -4,11 +4,11 @@ use tokio::time::{Duration, Instant};
 
 pub struct Node<'a> {
     scale: &'a Scale,
-    motor: ClearCoreMotor, // Maybe this should be a reference? 
+    motor: ClearCoreMotor<'a>, // Maybe this should be a reference? 
 }
 
 impl<'a> Node <'a> {
-    pub fn new(scale: &'a Scale, motor: ClearCoreMotor) -> Self {
+    pub fn new(scale: &'a Scale, motor: ClearCoreMotor<'a>) -> Self {
         Self {scale, motor }
     }
 
