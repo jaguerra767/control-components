@@ -16,17 +16,17 @@ pub enum Status {
 }
 
 
-pub struct ClearCoreMotor {
+pub struct ClearCoreMotor<'a> {
     id: u8,
     prefix: [u8;3],
     scale: isize,
-    drive: Controller
+    drive: &'a Controller
 }
 
 
-impl ClearCoreMotor {
+impl <'a> ClearCoreMotor <'a> {
     
-    pub fn new(id: u8, scale: isize,  drive: Controller) -> Self {
+    pub fn new(id: u8, scale: isize,  drive: &'a Controller) -> Self {
         let prefix = make_prefix(b'M', id);
         ClearCoreMotor { id, prefix, scale, drive }
     }
