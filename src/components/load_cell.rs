@@ -1,7 +1,6 @@
 use phidget::{devices::VoltageRatioInput, Phidget};
 use std::time::Duration;
 use std::error::Error;
-use std::thread;
 use std::thread::sleep;
 use tokio::time::Instant;
 
@@ -25,7 +24,7 @@ impl LoadCell {
         self.vin.open_wait(TIMEOUT)?;
         let min_data_interval = self.vin.min_data_interval()?;
         self.vin.set_data_interval(min_data_interval)?;
-        thread::sleep(Duration::from_millis(3000));
+        sleep(Duration::from_millis(3000));
         println!("Channel {:} set for Phidget {:}", self.channel_id, self.phidget_id);
         Ok(())
     }

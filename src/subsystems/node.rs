@@ -2,13 +2,13 @@ use crate::components::clear_core_motor::ClearCoreMotor;
 use crate::components::scale::Scale;
 use tokio::time::{Duration, Instant};
 
-pub struct Node<'a> {
-    pub scale: &'a Scale,
-    pub motor: ClearCoreMotor, // Maybe this should be a reference?
+pub struct Node {
+    scale: Scale,
+    motor: ClearCoreMotor,
 }
 
-impl<'a> Node <'a> {
-    pub fn new(scale: &'a Scale, motor: ClearCoreMotor) -> Self {
+impl Node {
+    pub fn new(scale: Scale, motor: ClearCoreMotor) -> Self {
         Self {scale, motor }
     }
 
@@ -50,9 +50,9 @@ impl<'a> Node <'a> {
             if curr_time - last_sent_motor > send_command_delay {
                 last_sent_motor = Instant::now();
                 let err = (curr_weight - target_weight) / serving;
-                let mut new_motor_speed = err * (motor_speed as f64);
-                self.motor.set_velocity(new_motor_speed as isize).await.expect("Failed to change speed");
-                self.motor.relative_move(1000).await.expect("Failed to update");
+                let new_motor_speed = err * (motor_speed as f64);
+                self.motor.set_velocity(new_motor_speed).await.expect("Failed to change speed");
+                self.motor.relative_move(1000.0).await.expect("Failed to update");
             }
         }
 
@@ -60,11 +60,10 @@ impl<'a> Node <'a> {
         println!("Dispensed: {:.1} g", final_weight);
     }
 
-    pub async fn mock_dispense(&self,
+    pub async fn timed_dispense(&self,
                                dispense_time: Duration,
                                sample_rate: f64,
                                cutoff_frequency: f64,
-                               motor_speed: isize,
     ) -> (Vec<Duration>, Vec<f64>) {
         // Set LP filter values
         let filter_period = 1. / sample_rate;
@@ -97,7 +96,7 @@ impl<'a> Node <'a> {
 
             if curr_time - last_sent_motor > send_command_delay {
                 last_sent_motor = Instant::now();
-                self.motor.relative_move(1000).await.expect("Failed to update");
+                self.motor.relative_move(1000.0).await.expect("Failed to update");
             }
         }
 

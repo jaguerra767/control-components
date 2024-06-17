@@ -6,15 +6,13 @@ use crate::subsystems::linear_actuator::{LinearActuator};
 
 pub struct Hatch<T: LinearActuator> {
     actuator: T,
-    open_limit: u16,
-    closed_limit:u16,
     timeout: Duration
 }
 
 impl<T: LinearActuator> Hatch<T> {
 
-    pub fn new(actuator: T, open_limit: u16, closed_limit:u16, timeout: Duration) -> Self {
-        Self{actuator,open_limit, closed_limit,timeout}
+    pub fn new(actuator: T, timeout: Duration) -> Self {
+        Self{actuator ,timeout}
     }
     
     pub async fn open(&self, set_point: isize) -> Result<(), Box<dyn Error>>{

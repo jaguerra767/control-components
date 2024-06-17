@@ -1,4 +1,4 @@
-use std::{thread, time, io};
+use std::{time, io};
 use std::error::Error;
 use std::thread::sleep;
 use std::time::Duration;
@@ -7,7 +7,6 @@ use tokio::time::Instant;
 use crate::components::load_cell::LoadCell;
 
 pub struct Scale {
-    phidget_id: i32,
     cells: [LoadCell; 4],
     cell_coefficients: Vec<Vec<f64>>,
     tare_offset: f64,
@@ -23,7 +22,6 @@ impl Scale {
         ];
         
         Ok(Self {
-            phidget_id,
             cells,
             // TODO: filler coefficients for now
             cell_coefficients: vec![vec![1.]; 4],
@@ -50,13 +48,13 @@ impl Scale {
     fn get_medians(&self, samples: usize, sample_rate: usize) -> Result<Vec<Vec<f64>>, Box<dyn Error>> {
         let mut readings: Vec<Vec<f64>> = vec![vec![]; 4];
         let mut medians = vec![0.; 4];
-        let delay = time::Duration::from_millis(1000/sample_rate as u64);
-        let _start_time = time::Instant::now();
+        let delay = Duration::from_millis(1000/sample_rate as u64);
+        let _start_time = Instant::now();
         for _sample in 0..samples {
             for cell in 0..self.cells.len() {
                 readings[cell].push(self.cells[cell].get_reading()?);
             }
-            thread::sleep(delay);
+            sleep(delay);
         }
         for cell in 0..self.cells.len() {
             medians[cell] = Scale::median(&mut readings[cell]);
@@ -80,11 +78,11 @@ impl Scale {
 
     pub fn weight_by_median(&self, samples: usize, sample_rate: usize) -> Result<f64, Box<dyn Error>> {
         let mut weights = Vec::new();
-        let delay = time::Duration::from_millis(1000/sample_rate as u64);
+        let delay = Duration::from_millis(1000/sample_rate as u64);
         let _start_time = time::Instant::now();
         for _sample in 0..samples {
             weights.push(self.live_weigh()?);
-            thread::sleep(delay);
+            sleep(delay);
         }
         Ok(Scale::median(&mut weights))
     }
@@ -151,14 +149,6 @@ pub enum ScaleError {
     IoError(io::Error),
 }
 
-
-#[test]
-fn create_scale() -> Result<(), Box<dyn Error>> {
-    let phidget_id = 716709;
-    let scale = Scale::new(phidget_id)?;
-    assert_eq!(scale.phidget_id, phidget_id);
-    Ok(())
-}
 
 #[test]
 fn connect_scale_cells() -> Result<(), Box<dyn Error>> {
