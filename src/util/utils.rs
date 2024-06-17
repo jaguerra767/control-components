@@ -3,7 +3,7 @@ pub const fn make_prefix(device_type: u8, device_id: u8) -> [u8;3] {
         [2, device_type, device_id + 48]
     }
     
-pub fn int_to_bytes<T: ToString>(number: T) -> Vec<u8> {
+pub fn num_to_bytes<T: ToString>(number: T) -> Vec<u8> {
     number.to_string()
         .chars()
         .map(|c| c as u8)
@@ -36,9 +36,9 @@ fn test_make_prefix() {
 
 #[test]
 fn test_int_to_bytes() {
-    let bytes = int_to_bytes(2300);
+    let bytes = num_to_bytes(2300);
     assert_eq!(bytes, [50,51,48,48]);
-    let bytes = int_to_bytes(-3400);
+    let bytes = num_to_bytes(-3400);
     assert_eq!(bytes, [45,51,52,48,48]);
 }
 
