@@ -17,9 +17,23 @@ impl Node {
     pub fn connect(& mut self) {
         self.scale.connect().expect("Scale failed to connect");
     }
-    
 
+    pub async fn connect_scale(&self, mut scale: Scale) -> Scale{
+        let task = tokio::task::spawn_blocking(move ||{
+            scale.connect().unwrap();
+            scale
+        });
+        task.await.unwrap()
+    }
+
+    pub async fn read_scale(&self, scale: Scale) -> (f64, Scale) {
+        let task = tokio::task::spawn_blocking(move || {
+            (scale.weight_by_median(50,200).unwrap(), scale)
+        });
+        task.await.unwrap()
+    }
     pub async fn dispense(&self,
+                          scale: Scale,
                           serving: f64,
                           sample_rate: f64,
                           cutoff_frequency: f64,
@@ -37,7 +51,7 @@ impl Node {
         
         
         
-        let init_weight = self.scale.weight_by_median(500, 100)
+        let init_weight = scale.weight_by_median(500, 100)
             .expect("Failed to weigh scale");
         let mut curr_weight = init_weight;
         let target_weight = init_weight - serving;
@@ -90,7 +104,7 @@ impl Node {
         // Data tracking
         let mut times = Vec::new();
         let mut weights = Vec::new();
-        self.motor.set_velocity(1.0).await.expect("TODO: panic message");
+        self.motor.set_velocity(0.5).await.expect("TODO: panic message");
         self.motor.relative_move(1000.0).await.expect("Failed to update");
         loop {
             let curr_time = Instant::now();
@@ -115,42 +129,29 @@ impl Node {
 }
 
 
-async fn connect_scale(mut scale: Scale) -> Scale{
-    let task = tokio::task::spawn_blocking(move ||{
-        scale.connect().unwrap();
-        scale
-    });
-    task.await.unwrap()
-}
-
-async fn read_scale(scale: Scale) -> (f64, Scale) {
-    let task = tokio::task::spawn_blocking(move || {
-        (scale.weight_by_median(50,200).unwrap(), scale)
-    });
-    task.await.unwrap()
-}
-
-async fn alt_dispense(motor: ClearCoreMotor) {
+async fn alt_dispense(motor: ClearCoreMotor, serving: f64) {
     let mut scale = connect_scale(Scale::new(716709)).await;
-    let mut weight = 0.0;
-    println!("{weight}");
+    let (curr_weight, scale) = read_scale(scale).await;
+    let target_weight = curr_weight - serving;
+    println!("Starting Weight: {curr_weight}");
     motor.set_velocity(0.5).await.unwrap();
     println!("Set Velocity command sent!");
     motor.relative_move(1000.0).await.unwrap();
     println!("Move Command Sent");
     let mut current_time =  Instant::now();
     let start_time = current_time;
-    (weight, scale) = read_scale(scale).await;
-    println!("Starting: {weight}");
     loop {
-        (weight, scale) = read_scale(scale).await;
+        (curr_weight, scale) = read_scale(scale).await;
         current_time = Instant::now();
         if (current_time - start_time) > Duration::from_secs(10) {
             motor.abrupt_stop().await.unwrap();
             break
         }
+        if curr_weight < target_weight {
+            break
+        }
     }
-    println!("Ending: {weight}");
+    println!("Ending Weight: {curr_weight}");
 }
 #[tokio::test]
 async fn test_node() {

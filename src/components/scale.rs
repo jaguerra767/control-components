@@ -72,7 +72,7 @@ impl Scale {
     }
 
 
-    pub fn weight_by_median(&self, samples: usize, sample_rate: usize) -> Result<f64, Box<dyn Error>> {
+    pub fn weight_by_median(self, samples: usize, sample_rate: usize) -> Result<f64, Box<dyn Error>> {
         let mut weights = Vec::new();
         let delay = Duration::from_millis(1000/sample_rate as u64);
         let _start_time = time::Instant::now();
