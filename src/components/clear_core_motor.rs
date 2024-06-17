@@ -1,8 +1,10 @@
 use std::error::Error;
 use std::result::Result;
 pub use std::time::Duration;
-use crate::util::utils::{make_prefix, int_to_bytes, ascii_to_int};
-use crate::controllers::clear_core::{Controller};
+use tokio::sync::mpsc::Sender;
+use crate::components::send_recv::SendRecv;
+use crate::util::utils::{make_prefix, num_to_bytes, ascii_to_int};
+use crate::subsystems::linear_actuator::Message;
 
 
 #[derive(Debug, PartialOrd, PartialEq)]
@@ -16,175 +18,154 @@ pub enum Status {
 }
 
 
-pub struct ClearCoreMotor<'a> {
+pub struct ClearCoreMotor {
     id: u8,
     prefix: [u8;3],
     scale: isize,
-    drive: &'a Controller
+    drive_sender: Sender<Message>
 }
 
 
-impl <'a> ClearCoreMotor <'a> {
-    
-    pub fn new(id: u8, scale: isize,  drive: &'a Controller) -> Self {
+impl ClearCoreMotor {
+    pub fn new(id: u8, scale: isize, drive_sender: Sender<Message>) -> Self {
         let prefix = make_prefix(b'M', id);
-        ClearCoreMotor { id, prefix, scale, drive }
+        ClearCoreMotor { id, prefix, scale, drive_sender }
     }
-    
+
     pub async fn enable(&self) -> Result<(), Box<dyn Error>> {
         let enable_cmd = [2, b'M', self.id + 48, b'E', b'N', 13];
-        self.drive.write(enable_cmd.as_ref()).await?;
+        self.write(enable_cmd.as_ref()).await?;
         Ok(())
     }
-    
+
     pub async fn disable(&self) -> Result<(), Box<dyn Error>> {
         let enable_cmd = [2, b'M', self.id + 48, b'D', b'E', 13];
-        self.drive.write(enable_cmd.as_ref()).await?;
+        self.write(enable_cmd.as_ref()).await?;
         Ok(())
     }
-   
-    pub async fn absolute_move(&self, position: isize) -> Result<(), Box<dyn Error>> {
-        let position = int_to_bytes(position*self.scale);
-        let mut msg: Vec<u8> = Vec::with_capacity(position.len() + self.prefix.len()+1);
+
+    pub async fn absolute_move(&self, position: f64) -> Result<(), Box<dyn Error>> {
+        let position = num_to_bytes((position * (self.scale as f64)).trunc() as isize);
+        let mut msg: Vec<u8> = Vec::with_capacity(position.len() + self.prefix.len() + 1);
         msg.extend_from_slice(self.prefix.as_slice());
         msg.extend_from_slice(b"AM");
         msg.extend_from_slice(position.as_slice());
         msg.push(13);
-        self.drive.write(msg.as_slice()).await?;
+        self.write(msg.as_slice()).await?;
         Ok(())
     }
-    
-    pub async fn relative_move(&self, position: isize) -> Result<(), Box<dyn Error>> {
-        let position = int_to_bytes(position*self.scale);
-        let mut msg: Vec<u8> = Vec::with_capacity(position.len() + self.prefix.len()+1);
+
+    pub async fn relative_move(&self, position: f64) -> Result<(), Box<dyn Error>> {
+        let position = num_to_bytes((position * (self.scale as f64)).trunc() as isize);
+        let mut msg: Vec<u8> = Vec::with_capacity(position.len() + self.prefix.len() + 1);
         msg.extend_from_slice(self.prefix.as_slice());
         msg.extend_from_slice(b"RM");
         msg.extend_from_slice(position.as_slice());
         msg.push(13);
-        self.drive.write(msg.as_slice()).await?;
+        self.write(msg.as_slice()).await?;
         Ok(())
     }
-    
-    pub async fn jog(&self, speed: isize) -> Result<(), Box<dyn Error>> {
-        let speed = int_to_bytes(speed * self.scale);
-        let mut msg: Vec<u8> = Vec::with_capacity(speed.len() + self.prefix.len()+1);
+
+    pub async fn jog(&self, speed: f64) -> Result<(), Box<dyn Error>> {
+        let speed = num_to_bytes((speed * (self.scale as f64)).trunc() as isize);
+        let mut msg: Vec<u8> = Vec::with_capacity(speed.len() + self.prefix.len() + 1);
         msg.extend_from_slice(self.prefix.as_slice());
         msg.extend_from_slice(b"JG");
         msg.extend_from_slice(speed.as_slice());
         msg.push(13);
-        self.drive.write(msg.as_slice()).await?;
-        Ok(())
-    }
-    
-    pub async fn abrupt_stop(&self) -> Result<(), Box<dyn Error>> {
-        let stop_cmd = [2, b'M', self.id + 48, b'A', b'S', 13];
-        self.drive.write(stop_cmd.as_ref()).await?;
+        self.write(msg.as_slice()).await?;
         Ok(())
     }
 
-    pub async fn stop(&self) -> Result<(), Box<dyn Error>>{
+    pub async fn abrupt_stop(&self) -> Result<(), Box<dyn Error>> {
+        let stop_cmd = [2, b'M', self.id + 48, b'A', b'S', 13];
+        self.write(stop_cmd.as_ref()).await?;
+        Ok(())
+    }
+
+    pub async fn stop(&self) -> Result<(), Box<dyn Error>> {
         let stop_cmd = [2, b'M', self.id + 48, b'S', b'T', 13];
-        self.drive.write(stop_cmd.as_ref()).await?;
+        self.write(stop_cmd.as_ref()).await?;
         Ok(())
     }
 
     pub async fn set_position(&self, position: isize) -> Result<(), Box<dyn Error>> {
-        let pos = int_to_bytes(position * self.scale);
-        let mut msg: Vec<u8> = Vec::with_capacity(pos.len() + self.prefix.len()+1);
+        let pos = num_to_bytes(position * self.scale);
+        let mut msg: Vec<u8> = Vec::with_capacity(pos.len() + self.prefix.len() + 1);
         msg.extend_from_slice(self.prefix.as_slice());
         msg.extend_from_slice(b"SP");
         msg.extend_from_slice(pos.as_slice());
         msg.push(13);
-        self.drive.write(msg.as_slice()).await?;
+        self.write(msg.as_slice()).await?;
         Ok(())
     }
 
-    pub async fn set_velocity(&self, velocity: isize) -> Result<(), Box<dyn Error>> {
-        let vel = int_to_bytes(velocity * self.scale);
-        let mut msg: Vec<u8> = Vec::with_capacity(vel.len() + self.prefix.len()+1);
+    pub async fn set_velocity(&self, velocity: f64) -> Result<(), Box<dyn Error>> {
+        let vel = num_to_bytes((velocity * (self.scale as f64)).trunc() as isize);
+        let mut msg: Vec<u8> = Vec::with_capacity(vel.len() + self.prefix.len() + 1);
         msg.extend_from_slice(self.prefix.as_slice());
         msg.extend_from_slice(b"SV");
         msg.extend_from_slice(vel.as_slice());
         msg.push(13);
-        self.drive.write(msg.as_slice()).await?;
+        self.write(msg.as_slice()).await?;
         Ok(())
     }
 
-    pub async fn set_acceleration(&self, acceleration: isize) -> Result<(), Box<dyn Error>> {
-        let accel = int_to_bytes(acceleration * self.scale);
-        let mut msg: Vec<u8> = Vec::with_capacity(accel.len() + self.prefix.len()+1);
+    pub async fn set_acceleration(&self, acceleration: f64) -> Result<(), Box<dyn Error>> {
+        let accel = num_to_bytes((acceleration * (self.scale as f64)).trunc() as isize);
+        let mut msg: Vec<u8> = Vec::with_capacity(accel.len() + self.prefix.len() + 1);
         msg.extend_from_slice(self.prefix.as_slice());
         msg.extend_from_slice(b"SA");
         msg.extend_from_slice(accel.as_slice());
         msg.push(13);
-        self.drive.write(msg.as_slice()).await?;
+        self.write(msg.as_slice()).await?;
         Ok(())
     }
 
-    pub async fn set_deceleration(&self, deceleration: isize) -> Result<(), Box<dyn Error>> {
-        let accel = int_to_bytes(deceleration * self.scale);
-        let mut msg: Vec<u8> = Vec::with_capacity(accel.len() + self.prefix.len()+1);
+    pub async fn set_deceleration(&self, deceleration: f64) -> Result<(), Box<dyn Error>> {
+        let accel = num_to_bytes((deceleration * (self.scale as f64)).trunc() as isize);
+        let mut msg: Vec<u8> = Vec::with_capacity(accel.len() + self.prefix.len() + 1);
         msg.extend_from_slice(self.prefix.as_slice());
         msg.extend_from_slice(b"SD");
         msg.extend_from_slice(accel.as_slice());
         msg.push(13);
-        self.drive.write(msg.as_slice()).await?;
+        self.write(msg.as_slice()).await?;
         Ok(())
     }
 
     pub async fn get_status(&self) -> Result<Status, Box<dyn Error>> {
         let status_cmd = [2, b'M', self.id + 48, b'G', b'S', 13];
-        let res = self.drive.write(status_cmd.as_slice()).await?;
-        match res[3]{
-            48 => {Ok(Status::Disabled)},
-            49 => {Ok(Status::Enabling)},
-            50 => {Ok(Status::Faulted)},
-            51 => {Ok(Status::Ready)},
-            54 => {Ok(Status::Moving)},
-            _ => {Ok(Status::Unknown)}
+        let res = self.write(status_cmd.as_slice()).await?;
+        match res[3] {
+            48 => { Ok(Status::Disabled) },
+            49 => { Ok(Status::Enabling) },
+            50 => { Ok(Status::Faulted) },
+            51 => { Ok(Status::Ready) },
+            54 => { Ok(Status::Moving) },
+            _ => { Ok(Status::Unknown) }
         }
     }
 
     pub async fn get_position(&self) -> Result<isize, Box<dyn Error>> {
         let get_pos_cmd = [2, b'M', self.id + 48, b'G', b'P', 13];
-        let res = self.drive.write(get_pos_cmd.as_slice()).await?;
+        let res = self.write(get_pos_cmd.as_slice()).await?;
         Ok(ascii_to_int(res.as_slice()))
     }
 
     pub async fn clear_alerts(&self) -> Result<(), Box<dyn Error>> {
         let clear_cmd = [2, b'M', self.id + 48, b'C', b'A', 13];
-        self.drive.write(clear_cmd.as_slice()).await?;
+        self.write(clear_cmd.as_slice()).await?;
         Ok(())
     }
-
-//     pub fn get_enable_handle(motor: AsyncMotor) -> JoinHandle<AsyncMotor> {
-//         tokio::spawn(async move {
-//             motor.enable().await.expect("Motor failed to enable");
-//             let status = motor.get_status().await.expect("Motor failed to check status");
-//             println!("{:?}", status);
-//             motor
-//         })
-//     }
-//     pub fn get_relative_move_handle(motor: AsyncMotor, speed: isize, steps: isize) -> JoinHandle<AsyncMotor> {
-//         tokio::spawn(async move {
-//             // motor.enable().await.expect("Motor enable failed") // TODO: Should be enabled when used
-//             motor.set_velocity(speed).await.expect("Motor failed to set velocity");
-//             motor.relative_move(steps).await.expect("Motor failed to relative move");
-//             let status = motor.get_status().await.expect("Motor failed to check status");
-//             println!("{:?}", status);
-//             motor
-//         })
-//     }
-//
-//     pub fn get_stop_handle(motor: AsyncMotor) -> JoinHandle<AsyncMotor> {
-//         tokio::spawn(async move {
-//             motor.abrupt_stop().await.expect("Motor failed to stop");
-//             let status = motor.get_status().await.expect("Motor failed to check status");
-//             println!("{:?}", status);
-//             motor
-//         })
-//     }
 }
+
+impl SendRecv for ClearCoreMotor {
+    fn get_sender(&self) -> &Sender<Message> {
+        &self.drive_sender
+    }
+}
+
+
 //
 // #[tokio::test]
 // pub async fn test_motor_enable_disable() {

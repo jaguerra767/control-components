@@ -69,7 +69,6 @@ struct Node {
     //time_unloaded
 }
 
-type NodeArray<Nodes, const N: usize> = [Nodes;N];
 
 #[derive(Debug, Clone)]
 pub enum HmiState {

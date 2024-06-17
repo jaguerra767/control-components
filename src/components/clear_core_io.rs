@@ -1,41 +1,55 @@
 use std::error::Error;
-use crate::util::utils::{ascii_to_int, int_to_byte, int_to_bytes};
-use crate::controllers::clear_core::{STX, CR, Controller};
+use tokio::sync::mpsc::Sender;
+use crate::components::send_recv::SendRecv;
+use crate::util::utils::{ascii_to_int, int_to_byte, num_to_bytes};
+use crate::controllers::clear_core::{STX, CR, Message};
 
 #[allow(unused)]
 const CLEAR_CORE_H_BRIDGE_MAX: i16 = 32760;
 
-pub struct DigitalInput<'a>{
+pub struct DigitalInput {
     cmd: [u8;4],
-    drive: &'a Controller
+    drive_sender: Sender<Message>
 }
 
-impl <'a> DigitalInput<'a> {
-    pub fn new(id: u8, drive: &'a Controller) -> Self {
+impl DigitalInput {
+    pub fn new(id: u8, drive_sender: Sender<Message>) -> Self {
         let cmd = [STX, b'I', int_to_byte(id), CR];
-        Self{ cmd, drive }
+        Self{ cmd, drive_sender }
     }
 
     pub async fn get_state(&self) -> Result<bool, Box<dyn Error>> {
-         let res = self.drive.write(self.cmd.as_slice()).await?;
+         let res = self.write(self.cmd.as_slice()).await?;
         Ok(ascii_to_int(&res[3..]) == 1)
     }
 }
 
-pub struct AnalogInput <'a>{
-    cmd: [u8;4],
-    drive: &'a Controller
+impl SendRecv for DigitalInput{
+    fn get_sender(&self) -> &Sender<Message> {
+        &self.drive_sender
+    }
 }
 
-impl <'a> AnalogInput <'a> {
-    pub fn new(id: u8, drive: &'a Controller) -> Self {
+pub struct AnalogInput {
+    cmd: [u8;4],
+    drive_sender: Sender<Message>
+}
+
+impl AnalogInput {
+    pub fn new(id: u8, drive_sender: Sender<Message>) -> Self {
         let cmd = [STX, b'I', int_to_byte(id), CR];
-        Self{ cmd, drive }
+        Self{ cmd, drive_sender }
     }
 
     pub async fn get_state(&self) -> Result<isize, Box<dyn Error>> {
-        let res = self.drive.write(self.cmd.as_slice()).await?;
+        let res = self.write(self.cmd.as_slice()).await?;
         Ok(ascii_to_int(&res[3..]))
+    }
+}
+
+impl SendRecv for AnalogInput{
+    fn get_sender(&self) -> &Sender<Message> {
+        &self.drive_sender
     }
 }
 
@@ -45,17 +59,17 @@ pub enum OutputState {
     On
 }
 
-pub struct Output<'a>{
+pub struct Output {
     on_cmd: [u8; 9],
     off_cmd: [u8; 9],
-    drive: &'a Controller
+    drive_sender: Sender<Message>
 }
 
-impl <'a> Output <'a> {
-    pub fn new(id: u8, drive: &'a Controller) -> Self {
+impl Output {
+    pub fn new(id: u8, drive_sender: Sender<Message>) -> Self {
         let on_cmd = [STX, b'O', int_to_byte(id), b'3' , b'2', b'7', b'0', b'0', CR];
         let off_cmd = [STX, b'O', int_to_byte(id), b'0', CR, 0, 0, 0, 0];
-        Self{on_cmd, off_cmd, drive}
+        Self{on_cmd, off_cmd, drive_sender}
     }
 
     fn command_builder(&self, state: OutputState) -> [u8;9] {
@@ -66,8 +80,14 @@ impl <'a> Output <'a> {
     }
 
     pub async fn set_state(&self, state: OutputState) -> Result<isize, Box<dyn Error>> {
-        let res = self.drive.write(self.command_builder(state).as_slice()).await?;
+        let res = self.write(self.command_builder(state).as_slice()).await?;
         Ok(ascii_to_int(&res[3..]))
+    }
+}
+
+impl SendRecv for Output {
+    fn get_sender(&self) -> &Sender<Message> {
+        &self.drive_sender
     }
 }
 
@@ -78,23 +98,23 @@ pub enum HBridgeState {
     Off
 }
 
-pub struct HBridge <'a> {
+pub struct HBridge {
     power: i16,
     prefix: [u8;3],
-    drive: &'a Controller
+    drive_sender: Sender<Message>
 }
 
-impl <'a> HBridge <'a> {
-    pub fn new(id: u8, power: i16, drive: &'a Controller) -> Self {
+impl HBridge {
+    pub fn new(id: u8, power: i16, drive_sender: Sender<Message>) -> Self {
         let prefix = [STX, b'O', int_to_byte(id)];
-        Self{power, prefix, drive}
+        Self{power, prefix, drive_sender}
     }
 
     fn command_builder(&self, state: HBridgeState) -> Vec<u8> {
         let state = match state {
-            HBridgeState::Pos => {int_to_bytes(self.power)}
-            HBridgeState::Neg => {int_to_bytes(-self.power)}
-            HBridgeState::Off => {int_to_bytes(0)}
+            HBridgeState::Pos => {num_to_bytes(self.power)}
+            HBridgeState::Neg => {num_to_bytes(-self.power)}
+            HBridgeState::Off => {num_to_bytes(0)}
         };
         let mut cmd: Vec<u8> = Vec::with_capacity(self.prefix.len() + state.len() + 1);
         cmd.extend_from_slice(self.prefix.as_slice());
@@ -104,7 +124,13 @@ impl <'a> HBridge <'a> {
     }
 
     pub async fn set_state(&self, state: HBridgeState) -> Result<(), Box<dyn Error>> {
-        self.drive.write(self.command_builder(state).as_slice()).await?;
+        self.write(self.command_builder(state).as_slice()).await?;
         Ok(())
+    }
+}
+
+impl SendRecv for HBridge {
+    fn get_sender(&self) -> &Sender<Message> {
+        &self.drive_sender
     }
 }

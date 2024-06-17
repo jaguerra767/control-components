@@ -2,13 +2,13 @@ use crate::components::clear_core_motor::ClearCoreMotor;
 use crate::components::scale::Scale;
 use tokio::time::{Duration, Instant};
 
-pub struct Node<'a> {
-    scale: &'a Scale,
-    motor: ClearCoreMotor<'a>, // Maybe this should be a reference? 
+pub struct Node {
+    scale: Scale,
+    motor: ClearCoreMotor, // Maybe this should be a reference? 
 }
 
-impl<'a> Node <'a> {
-    pub fn new(scale: &'a Scale, motor: ClearCoreMotor<'a>) -> Self {
+impl Node {
+    pub fn new(scale: Scale, motor: ClearCoreMotor) -> Self {
         Self {scale, motor }
     }
 
@@ -46,7 +46,7 @@ impl<'a> Node <'a> {
             if curr_time - last_sent_motor > send_command_delay {
                 last_sent_motor = Instant::now();
                 //TODO: Add code that changes motor speed depending on weight error
-                self.motor.relative_move(1000).await.expect("Failed to update");
+                self.motor.relative_move(1000.0).await.expect("Failed to update");
             }
         }
     }
