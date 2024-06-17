@@ -6,6 +6,7 @@ use linalg::{LinearSystem, MatrixError};
 use tokio::time::Instant;
 use crate::components::load_cell::LoadCell;
 
+
 pub struct Scale {
     cells: [LoadCell; 4],
     cell_coefficients: Vec<Vec<f64>>,
@@ -13,20 +14,15 @@ pub struct Scale {
 }
 
 impl Scale {
-    pub fn new(phidget_id: i32) -> Result<Self, Box<dyn Error>> {
+    pub fn new(phidget_id: i32) -> Self {
         let cells = [
-            LoadCell::new(phidget_id, 0)?,
-            LoadCell::new(phidget_id, 1)?,
-            LoadCell::new(phidget_id, 2)?,
-            LoadCell::new(phidget_id, 3)?
+            LoadCell::new(phidget_id, 0),
+            LoadCell::new(phidget_id, 1),
+            LoadCell::new(phidget_id, 2),
+            LoadCell::new(phidget_id, 3)
         ];
         
-        Ok(Self {
-            cells,
-            // TODO: filler coefficients for now
-            cell_coefficients: vec![vec![1.]; 4],
-            tare_offset: 0.
-        })
+        Self { cells, cell_coefficients: vec![vec![1.]; 4], tare_offset: 0. }
     }
 
     pub fn connect(&mut self) -> Result<(), Box<dyn Error>> {
@@ -152,14 +148,14 @@ pub enum ScaleError {
 
 #[test]
 fn connect_scale_cells() -> Result<(), Box<dyn Error>> {
-    let mut scale = Scale::new(716709)?;
+    let mut scale = Scale::new(716709);
     scale.connect()?;
     Ok(())
 }
 
 #[test]
 fn read_scale() -> Result<(), Box<dyn Error>> {
-    let mut scale = Scale::new(716709)?;
+    let mut scale = Scale::new(716709);
     scale.connect()?;
     let readings = scale.get_readings()?;
     println!("Scale Readings: {:?}", readings);
@@ -168,7 +164,7 @@ fn read_scale() -> Result<(), Box<dyn Error>> {
 
 #[test]
 fn live_weigh_scale() -> Result<(), Box<dyn Error>> {
-    let mut scale = Scale::new(716709)?;
+    let mut scale = Scale::new(716709);
     scale.connect()?;
     scale.cell_coefficients = vec![vec![-4832237.786999262],
                                    vec![-2679438.3255438516],
@@ -183,7 +179,7 @@ fn live_weigh_scale() -> Result<(), Box<dyn Error>> {
 
 #[test]
 fn weigh_scale() -> Result<(), Box<dyn Error>> {
-    let mut scale = Scale::new(716709)?;
+    let mut scale = Scale::new(716709);
     scale.connect()?;
     scale.cell_coefficients = vec![vec![-4832237.786999262],
                                    vec![-2679438.3255438516],
@@ -198,7 +194,7 @@ fn weigh_scale() -> Result<(), Box<dyn Error>> {
 
 #[test]
 fn calibrate_scale() -> Result<(), Box<dyn Error>> {
-    let mut scale = Scale::new(716709)?;
+    let mut scale = Scale::new(716709);
     scale.connect()?;
     scale.calibrate(437.7, 1000, 100)?;
 
@@ -207,7 +203,7 @@ fn calibrate_scale() -> Result<(), Box<dyn Error>> {
 
 #[test]
 fn get_medians() -> Result<(), Box<dyn Error>> {
-    let mut scale = Scale::new(716709)?;
+    let mut scale = Scale::new(716709);
     scale.connect()?;
     let medians = scale.get_medians(1000, 50)?;
     println!("Medians: {:?}", medians);
@@ -216,7 +212,7 @@ fn get_medians() -> Result<(), Box<dyn Error>> {
 
 #[test]
 fn diagnose_scale() -> Result<(), Box<dyn Error>> {
-    let mut scale = Scale::new(716709)?;
+    let mut scale = Scale::new(716709);
     scale.connect()?;
     let (_times, _weights) = scale.diagnose(Duration::from_secs(5), 100)?;
     Ok(())

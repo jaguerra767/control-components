@@ -1,6 +1,8 @@
+
 use crate::components::clear_core_motor::ClearCoreMotor;
 use crate::components::scale::Scale;
 use tokio::time::{Duration, Instant};
+use crate::interface::tcp::client;
 
 pub struct Node {
     scale: Scale,
@@ -12,10 +14,10 @@ impl Node {
         Self {scale, motor }
     }
 
-    pub fn connect(mut scale: Scale) -> Scale {
-        scale.connect().expect("Scale failed to connect");
-        scale
+    pub fn connect(& mut self) {
+        self.scale.connect().expect("Scale failed to connect");
     }
+    
 
     pub async fn dispense(&self,
                           serving: f64,
@@ -32,6 +34,9 @@ impl Node {
         // Initialize dispense tracking variables
         let init_time = Instant::now();
         let mut last_sent_motor = Instant::now();
+        
+        
+        
         let init_weight = self.scale.weight_by_median(500, 100)
             .expect("Failed to weigh scale");
         let mut curr_weight = init_weight;
@@ -76,6 +81,8 @@ impl Node {
         let mut last_sent_motor = Instant::now();
         let init_weight = self.scale.weight_by_median(500, 100)
             .expect("Failed to weigh scale");
+        
+        
         let mut curr_weight = init_weight;
         let timeout = dispense_time;
         let send_command_delay = Duration::from_millis(250);
@@ -83,7 +90,8 @@ impl Node {
         // Data tracking
         let mut times = Vec::new();
         let mut weights = Vec::new();
-
+        self.motor.set_velocity(1.0).await.expect("TODO: panic message");
+        self.motor.relative_move(1000.0).await.expect("Failed to update");
         loop {
             let curr_time = Instant::now();
             if curr_time - init_time > timeout {
@@ -107,20 +115,49 @@ impl Node {
 }
 
 
+async fn connect_scale(mut scale: Scale) -> Scale{
+    let task = tokio::task::spawn_blocking(move ||{
+        scale.connect().unwrap();
+        scale
+    });
+    task.await.unwrap()
+}
 
-// enum NodeError {
-//     ScaleError(ScaleError),
-//     MotorError
-// }
+async fn read_scale(scale: Scale) -> (f64, Scale) {
+    let task = tokio::task::spawn_blocking(move || {
+        (scale.weight_by_median(50,200).unwrap(), scale)
+    });
+    task.await.unwrap()
+}
 
-// #[tokio::test]
-// async fn dispense_test() -> Data {
-//     let mut scale = Scale::new(716620).expect("Failed to construct scale");
-//     scale.connect().expect("Failed to connect scale");
-//     let (tx, rx) = mpsc::channel::<Message>(100);
-//     let client = tokio::spawn(client("192.168.1.12:8888", rx));
-//     let motor = AsyncMotor::new(0, 800, Controller::new(tx));
-//     
-//     let (_, _, data) = Node::dispense(scale, motor, 75., 50, 200., 0.5).await;
-//     data
-// }
+async fn alt_dispense(motor: ClearCoreMotor) {
+    let mut scale = connect_scale(Scale::new(716709)).await;
+    let mut weight = 0.0;
+    println!("{weight}");
+    motor.set_velocity(0.5).await.unwrap();
+    println!("Set Velocity command sent!");
+    motor.relative_move(1000.0).await.unwrap();
+    println!("Move Command Sent");
+    let mut current_time =  Instant::now();
+    let start_time = current_time;
+    (weight, scale) = read_scale(scale).await;
+    println!("Starting: {weight}");
+    loop {
+        (weight, scale) = read_scale(scale).await;
+        current_time = Instant::now();
+        if (current_time - start_time) > Duration::from_secs(10) {
+            motor.abrupt_stop().await.unwrap();
+            break
+        }
+    }
+    println!("Ending: {weight}");
+}
+#[tokio::test]
+async fn test_node() {
+    let (tx, rx) = tokio::sync::mpsc::channel(10);
+    let client = tokio::spawn(client("192.168.1.12:8888", rx));
+    let task = tokio::spawn(alt_dispense(ClearCoreMotor::new(0, 800, tx)));
+    task.await.unwrap();
+    let _ = client.await.unwrap();
+}
+

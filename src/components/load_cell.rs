@@ -6,6 +6,7 @@ use tokio::time::Instant;
 
 const TIMEOUT: Duration = phidget::TIMEOUT_DEFAULT;
 
+                                                   
 pub struct LoadCell {
     phidget_id: i32,
     channel_id: i32,
@@ -13,9 +14,9 @@ pub struct LoadCell {
 }
 impl LoadCell {
 
-    pub fn new(phidget_id: i32, channel_id: i32) -> Result<Self, Box<dyn Error>> {
+    pub fn new(phidget_id: i32, channel_id: i32) -> Self {
         let vin = VoltageRatioInput::new();
-        Ok(Self { phidget_id, channel_id, vin })
+        Self { phidget_id, channel_id, vin }
     }
 
     pub fn connect(&mut self) -> Result<(), Box<dyn Error>> {
@@ -55,14 +56,15 @@ impl LoadCell {
 
 #[test]
 fn get_load_cell_reading() {
-    let mut cell = LoadCell::new(716709, 0).expect("Failed to create load cell");
+    let mut cell = LoadCell::new(716709, 0);
     cell.connect().expect("Failed to connect load cell");
     let _reading = cell.get_reading().expect("Failed to read load cell");
 }
 
 #[test]
 fn diagnose_load_cell() {
-    let mut cell = LoadCell::new(716709, 0).expect("Failed to create load cell");
+    let mut cell = LoadCell::new(716709, 0);
     cell.connect().expect("Failed to connect load cell");
-    let (_times, _readings) = cell.diagnose(Duration::from_millis(500), 100).expect("Failed to diagnose load cell");
+    let (_times, _readings) = cell.diagnose(Duration::from_millis(500), 100)
+        .expect("Failed to diagnose load cell");
 }
