@@ -1,45 +1,15 @@
-use phidget::{devices::VoltageRatioInput, Phidget};
 use std::{thread, time, io};
-use std::time::Duration;
 use std::error::Error;
+use std::thread::sleep;
+use std::time::Duration;
 use linalg::{LinearSystem, MatrixError};
-
-const TIMEOUT: Duration = phidget::TIMEOUT_DEFAULT;
-struct LoadCell {
-    phidget_id: i32,
-    channel_id: i32,
-    vin: VoltageRatioInput,
-}
-impl LoadCell {
-    
-    pub fn new(phidget_id: i32, channel_id: i32) -> Result<Self, Box<dyn Error>> {
-        let vin = VoltageRatioInput::new();
-        Ok(Self { phidget_id, channel_id, vin })
-    }
-
-    pub fn connect(&mut self) -> Result<(), Box<dyn Error>> {
-        self.vin.set_serial_number(self.phidget_id)?;
-        self.vin.set_channel(self.channel_id)?;
-        self.vin.open_wait(TIMEOUT).expect("Load Cell Attachment Failed");
-        let min_data_interval = self.vin.min_data_interval()?;
-        self.vin.set_data_interval(min_data_interval)?;
-        thread::sleep(Duration::from_millis(3000));
-        println!("Channel {:} set for Phidget {:}", self.channel_id, self.phidget_id);
-        Ok(())
-    }
-
-    fn get_reading(&self) -> Result<f64, Box<dyn Error>> {
-        // Gets the reading of a load cell from
-        // Phidget.
-        let reading = self.vin.voltage_ratio()?;
-        Ok(reading)
-    }
-    
-}
+use tokio::time::Instant;
+use crate::components::load_cell::LoadCell;
 
 pub struct Scale {
+    phidget_id: i32,
     cells: [LoadCell; 4],
-    pub cell_coefficients: Vec<Vec<f64>>,
+    cell_coefficients: Vec<Vec<f64>>,
     tare_offset: f64,
 }
 
@@ -53,8 +23,9 @@ impl Scale {
         ];
         
         Ok(Self {
+            phidget_id,
             cells,
-            // filler coefficients for now
+            // TODO: filler coefficients for now
             cell_coefficients: vec![vec![1.]; 4],
             tare_offset: 0.
         })
@@ -79,7 +50,7 @@ impl Scale {
     fn get_medians(&self, samples: usize, sample_rate: usize) -> Result<Vec<Vec<f64>>, Box<dyn Error>> {
         let mut readings: Vec<Vec<f64>> = vec![vec![]; 4];
         let mut medians = vec![0.; 4];
-        let delay = Duration::from_millis(1000/sample_rate as u64);
+        let delay = time::Duration::from_millis(1000/sample_rate as u64);
         let _start_time = time::Instant::now();
         for _sample in 0..samples {
             for cell in 0..self.cells.len() {
@@ -109,7 +80,7 @@ impl Scale {
 
     pub fn weight_by_median(&self, samples: usize, sample_rate: usize) -> Result<f64, Box<dyn Error>> {
         let mut weights = Vec::new();
-        let delay = Duration::from_millis(1000/sample_rate as u64);
+        let delay = time::Duration::from_millis(1000/sample_rate as u64);
         let _start_time = time::Instant::now();
         for _sample in 0..samples {
             weights.push(self.live_weigh()?);
@@ -146,9 +117,28 @@ impl Scale {
         println!("DEBUG: {:?}, {:?}", trial_readings, test_mass_vector);
         let mut system = LinearSystem::new(trial_readings, test_mass_vector)?;
         system.display();
-        self.cell_coefficients = system.solve().expect("Failed to solve");
+        self.change_coefficients(system.solve()?);
         
         Ok(())
+    }
+
+    pub fn change_coefficients(&mut self, coefficients: Vec<Vec<f64>>) {
+        self.cell_coefficients = coefficients;
+    }
+
+    pub fn diagnose(&self, duration: Duration, sample_rate: usize) -> Result<(Vec<Duration>, Vec<f64>), Box<dyn Error>> {
+        let mut times = Vec::new();
+        let mut weights = Vec::new();
+        let data_interval = Duration::from_secs_f64(1. / (sample_rate as f64));
+
+        let init_time = Instant::now();
+        while Instant::now() - init_time < duration {
+            weights.push(self.live_weigh()?);
+            times.push(Instant::now()-init_time);
+            sleep(data_interval);
+        }
+
+        Ok((times, weights))
     }
 
 }
@@ -161,31 +151,12 @@ pub enum ScaleError {
     IoError(io::Error),
 }
 
-#[test]
-fn create_load_cell() -> Result<(), Box<dyn Error>> {
-    LoadCell::new(716709, 0)?;
-    Ok(())
-}
-
-#[test]
-fn connect_load_cell() -> Result<(), Box<dyn Error>> {
-    let mut cell = LoadCell::new(716709, 0)?;
-    cell.connect()?;
-    Ok(())
-}
-
-#[test]
-fn read_load_cell() -> Result<(), Box<dyn Error>> {
-    let mut cell = LoadCell::new(716709, 0)?;
-    cell.connect()?;
-    let reading = cell.get_reading()?;
-    println!("Load Cell Reading: {:?}", reading);
-    Ok(())
-}
 
 #[test]
 fn create_scale() -> Result<(), Box<dyn Error>> {
-    Scale::new(716709)?;
+    let phidget_id = 716709;
+    let scale = Scale::new(phidget_id)?;
+    assert_eq!(scale.phidget_id, phidget_id);
     Ok(())
 }
 
@@ -240,6 +211,7 @@ fn calibrate_scale() -> Result<(), Box<dyn Error>> {
     let mut scale = Scale::new(716709)?;
     scale.connect()?;
     scale.calibrate(437.7, 1000, 100)?;
+
     Ok(())
 }
 
@@ -249,5 +221,13 @@ fn get_medians() -> Result<(), Box<dyn Error>> {
     scale.connect()?;
     let medians = scale.get_medians(1000, 50)?;
     println!("Medians: {:?}", medians);
+    Ok(())
+}
+
+#[test]
+fn diagnose_scale() -> Result<(), Box<dyn Error>> {
+    let mut scale = Scale::new(716709)?;
+    scale.connect()?;
+    let (_times, _weights) = scale.diagnose(Duration::from_secs(5), 100)?;
     Ok(())
 }
