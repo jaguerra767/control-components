@@ -109,7 +109,7 @@ async fn close_all() {
         // Hatch::new(linear_actuator3,Duration::from_secs_f64(3.))
         //     .timed_close(Duration::from_secs_f64(2.1)).await.unwrap();
         Hatch::new(linear_actuator4,Duration::from_secs_f64(3.))
-            .timed_close(Duration::from_secs_f64(2.2)).await.unwrap();
+            .timed_close(Duration::from_secs_f64(2.)).await.unwrap();
     });
     let (_, _, _) = tokio::join!(task, cc1_handler, cc2_handler);
 }

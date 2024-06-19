@@ -81,7 +81,7 @@ async fn hello(
     tx: mpsc::Sender<HmiState>,
 ) -> Result<Response<Full<Bytes>>, Infallible> {
     tx.send(HmiState::Start).await.unwrap();
-    Ok(Response::new(Full::new(Bytes::from("Hello, World!"))))
+    Ok(Response::new(Full::new(Bytes::from("Hello, World. I'm Ryo!"))))
 }
 
 pub async fn ui_request_handler(
