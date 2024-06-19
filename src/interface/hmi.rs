@@ -93,7 +93,7 @@ pub async fn ui_request_handler(
         (&Method::GET, "/motor_state") => {
             let mut states = Vec::new();
             for drive in tx_s.drive_senders{
-              for i in 0..3 {
+              for i in 0..4 {
                   let state = ClearCoreMotor::new(i, 800, drive.clone())
                       .get_status()
                       .await
