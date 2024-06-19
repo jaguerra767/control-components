@@ -103,6 +103,9 @@ impl ClearCoreMotor {
     }
 
     pub async fn set_velocity(&self, velocity: f64) -> Result<(), Box<dyn Error>> {
+        if velocity < 0. {
+            return Err(Box::from("Velocity must be positive"))
+        }
         let vel = num_to_bytes((velocity * (self.scale as f64)).trunc() as isize);
         let mut msg: Vec<u8> = Vec::with_capacity(vel.len() + self.prefix.len() + 1);
         msg.extend_from_slice(self.prefix.as_slice());
