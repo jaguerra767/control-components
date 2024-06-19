@@ -77,12 +77,12 @@ async fn open_all() {
     let cc1_handler = tokio::spawn(client("192.168.1.11:8888", rx));
     let cc2_handler = tokio::spawn(client("192.168.1.12:8888", rx2));
     let task = tokio::spawn(async move {
-        // Hatch::new(linear_actuator1,Duration::from_secs_f64(3.))
-        //     .timed_open(Duration::from_secs_f64(2.1)).await.unwrap();
-        // Hatch::new(linear_actuator2,Duration::from_secs_f64(3.))
-        //     .timed_open(Duration::from_secs_f64(2.1)).await.unwrap();
-        // Hatch::new(linear_actuator3,Duration::from_secs_f64(3.))
-        //     .timed_open(Duration::from_secs_f64(2.1)).await.unwrap();
+        Hatch::new(linear_actuator1,Duration::from_secs_f64(3.))
+            .timed_open(Duration::from_secs_f64(2.1)).await.unwrap();
+        Hatch::new(linear_actuator2,Duration::from_secs_f64(3.))
+            .timed_open(Duration::from_secs_f64(2.1)).await.unwrap();
+        Hatch::new(linear_actuator3,Duration::from_secs_f64(3.))
+            .timed_open(Duration::from_secs_f64(2.1)).await.unwrap();
         Hatch::new(linear_actuator4,Duration::from_secs_f64(3.))
             .timed_open(Duration::from_secs_f64(2.1)).await.unwrap();
         
@@ -102,12 +102,12 @@ async fn close_all() {
     let cc1_handler = tokio::spawn(client("192.168.1.11:8888", rx));
     let cc2_handler = tokio::spawn(client("192.168.1.12:8888", rx2));
     let task = tokio::spawn(async move {
-        // Hatch::new(linear_actuator1,Duration::from_secs_f64(3.))
-        //     .timed_close(Duration::from_secs_f64(2.1)).await.unwrap();
-        // Hatch::new(linear_actuator2,Duration::from_secs_f64(3.))
-        //     .timed_close(Duration::from_secs_f64(2.1)).await.unwrap();
-        // Hatch::new(linear_actuator3,Duration::from_secs_f64(3.))
-        //     .timed_close(Duration::from_secs_f64(2.1)).await.unwrap();
+        Hatch::new(linear_actuator1,Duration::from_secs_f64(3.))
+            .timed_close(Duration::from_secs_f64(2.1)).await.unwrap();
+        Hatch::new(linear_actuator2,Duration::from_secs_f64(3.))
+            .timed_close(Duration::from_secs_f64(2.1)).await.unwrap();
+        Hatch::new(linear_actuator3,Duration::from_secs_f64(3.))
+            .timed_close(Duration::from_secs_f64(2.1)).await.unwrap();
         Hatch::new(linear_actuator4,Duration::from_secs_f64(3.))
             .timed_close(Duration::from_secs_f64(2.)).await.unwrap();
     });
