@@ -80,8 +80,8 @@ pub enum HmiState {
 
 #[derive(Debug, Clone)]
 pub struct UISenders{
-    hmi_state: mpsc::Sender<HmiState>,
-    drive_senders: Vec<mpsc::Sender<Message>>
+    pub hmi_state: mpsc::Sender<HmiState>,
+    pub drive_senders: Vec<mpsc::Sender<Message>>
 }
 
 pub async fn ui_request_handler(
