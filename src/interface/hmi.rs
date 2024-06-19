@@ -85,12 +85,16 @@ async fn hello(
 }
 
 pub async fn ui_request_handler(
-    req: Request<hyper::body::Incoming>
+    req: Request<hyper::body::Incoming>,
+    tx: mpsc::Sender<HmiState>
 ) -> Result<Response<BoxBody<Bytes, hyper::Error>>, hyper::Error> {
     match (req.method(), req.uri().path()) {
         (&Method::GET, "/") => Ok(Response::new(full("Hola, soy Ryo!"))),
-        (&Method::POST, "/echo") => { Ok(Response::new(req.into_body().boxed()))}
+        (&Method::GET, "/motor_state") => Ok(Response::new(full("Hola, soy Ryo!"))),
+        (&Method::GET, "/input_state") => Ok(Response::new(full("WIP"))),
         (&Method::GET, "/v1/api/recipe/all") => {Ok(Response::new(full("WIP")))},
+        (&Method::POST, "/echo") => { Ok(Response::new(req.into_body().boxed()))},
+        (&Method::POST, "/drive_command") => { Ok(Response::new(req.into_body().boxed()))},
         (_, _) => {
             let mut not_found = Response::new(empty());
             *not_found.status_mut() = StatusCode::NOT_FOUND;
@@ -99,24 +103,10 @@ pub async fn ui_request_handler(
     }
 }
 
-pub async fn ui_request_handler_(mut ui_state: mpsc::Receiver<HmiState>) {
-    while let Some(state) = ui_state.recv().await {
-        match state {
-            HmiState::Start => {
-                println!("Start Command Sent")
-            }
-            HmiState::Stop => {
-                println!("Start Command Sent")
-            }
-        }
-    }
-}
-
 pub async fn ui_server(
     tx: mpsc::Sender<HmiState>,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let addr = SocketAddr::from(([0, 0, 0, 0], 3000));
-    // We create a TcpListener and bind it to 127.0.0.1:3000
     let listener = TcpListener::bind(addr).await?;
     loop {
         let (stream, _) = listener.accept().await?;
@@ -127,7 +117,7 @@ pub async fn ui_server(
             // Finally, we bind the incoming connection to our `hello` service
             if let Err(err) = http1::Builder::new()
                 // `service_fn` converts our function in a `Service`
-                .serve_connection(io, service_fn(|req| hello(req, tx.clone())))
+                .serve_connection(io, service_fn(|req| ui_request_handler(req, tx.clone())))
                 .await
             {
                 eprintln!("Error serving connection: {:?}", err);
