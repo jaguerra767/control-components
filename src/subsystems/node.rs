@@ -1,4 +1,5 @@
 use tokio::join;
+
 use crate::components::clear_core_motor::ClearCoreMotor;
 use crate::components::scale::Scale;
 use tokio::time::{Duration, Instant};
@@ -35,6 +36,7 @@ pub struct Node {
 }
 
 impl Node {
+  
     pub fn new(motor: ClearCoreMotor) -> Self {
         Self { motor }
     }
@@ -56,6 +58,7 @@ impl Node {
             Scale::weight_by_median(scale, time, sample_rate).expect("Failed to weigh scale")
         }).await.unwrap()
     }
+
 
     pub async fn dispense(&self,
                           scale: Scale,
@@ -80,6 +83,7 @@ impl Node {
         let mut last_sent_motor = Instant::now();
         
         let (mut scale, init_weight) = self.read_scale_median(scale, Duration::from_secs(3), 50).await;
+
         let mut curr_weight = init_weight;
         let target_weight = init_weight - parameters.serving_weight;
         let mut reading: f64;
@@ -145,7 +149,9 @@ impl Node {
         // Initialize dispense tracking variables
         let init_time = Instant::now();
         let mut last_sent_motor = Instant::now();
+         
         let (mut scale, init_weight) = self.read_scale_median(scale, Duration::from_secs(3), 200).await;
+
         let mut curr_weight = init_weight;
         let mut reading: f64;
         let timeout = dispense_time;
@@ -182,32 +188,7 @@ impl Node {
         scale    
 }
 }
-// //
-// //
-// // async fn alt_dispense(motor: ClearCoreMotor, serving: f64) {
-// //     let mut scale = connect_scale(Scale::new(716709)).await;
-// //     let (curr_weight, scale) = read_scale(scale).await;
-// //     let target_weight = curr_weight - serving;
-// //     println!("Starting Weight: {curr_weight}");
-// //     motor.set_velocity(0.5).await.unwrap();
-// //     println!("Set Velocity command sent!");
-// //     motor.relative_move(1000.0).await.unwrap();
-// //     println!("Move Command Sent");
-// //     let mut current_time =  Instant::now();
-// //     let start_time = current_time;
-// //     loop {
-// //         (curr_weight, scale) = read_scale(scale).await;
-// //         current_time = Instant::now();
-// //         if (current_time - start_time) > Duration::from_secs(10) {
-// //             motor.abrupt_stop().await.unwrap();
-// //             break
-// //         }
-// //         if curr_weight < target_weight {
-// //             break
-// //         }
-// //     }
-// //     println!("Ending Weight: {curr_weight}");
-// // }
+
 
 #[tokio::test]
 async fn test() {
@@ -243,13 +224,4 @@ async fn motor_test() {
     let (_, _) = join!(client, task);
     println!("DEBUG: Complete!")
 }
-
-// #[tokio::test]
-// async fn test_node() {
-//     let (tx, rx) = tokio::sync::mpsc::channel(10);
-//     let client = tokio::spawn(client("192.168.1.12:8888", rx));
-//     let task = tokio::spawn(alt_dispense(ClearCoreMotor::new(0, 800, tx)));
-//     task.await.unwrap();
-//     let _ = client.await.unwrap();
-// }
 

@@ -1,13 +1,15 @@
 use std::error::Error;
 use std::result::Result;
 pub use std::time::Duration;
+use serde::Serialize;
 use tokio::sync::mpsc::Sender;
 use crate::components::send_recv::SendRecv;
+use crate::interface::tcp::client;
 use crate::util::utils::{make_prefix, num_to_bytes, ascii_to_int};
 use crate::subsystems::linear_actuator::Message;
 
 
-#[derive(Debug, PartialOrd, PartialEq)]
+#[derive(Debug, PartialOrd, PartialEq, Serialize)]
 pub enum Status {
     Disabled, 
     Enabling,
@@ -32,10 +34,10 @@ impl ClearCoreMotor {
         ClearCoreMotor { id, prefix, scale, drive_sender }
     }
 
-    pub async fn enable(&self) -> Result<(), Box<dyn Error>> {
+    pub async fn enable(&self) -> Result<&Self, Box<dyn Error>> {
         let enable_cmd = [2, b'M', self.id + 48, b'E', b'N', 13];
         self.write(enable_cmd.as_ref()).await?;
-        Ok(())
+        Ok(self)
     }
 
     pub async fn disable(&self) -> Result<(), Box<dyn Error>> {
@@ -144,20 +146,28 @@ impl ClearCoreMotor {
             49 => { Ok(Status::Enabling) },
             50 => { Ok(Status::Faulted) },
             51 => { Ok(Status::Ready) },
-            54 => { Ok(Status::Moving) },
+            52 => { Ok(Status::Moving) },
             _ => { Ok(Status::Unknown) }
         }
     }
 
-    pub async fn get_position(&self) -> Result<isize, Box<dyn Error>> {
+    pub async fn get_position(&self) -> Result<f64, Box<dyn Error>> {
         let get_pos_cmd = [2, b'M', self.id + 48, b'G', b'P', 13];
         let res = self.write(get_pos_cmd.as_slice()).await?;
-        Ok(ascii_to_int(res.as_slice()))
+        let pos = (ascii_to_int(res.as_slice()) as f64)/ (self.scale as f64);
+        Ok(pos)
     }
 
     pub async fn clear_alerts(&self) -> Result<(), Box<dyn Error>> {
         let clear_cmd = [2, b'M', self.id + 48, b'C', b'A', 13];
         self.write(clear_cmd.as_slice()).await?;
+        Ok(())
+    }
+    
+    pub async fn wait_for_move(&self, sampling_rate: Duration) -> Result<(), Box<dyn Error>> {
+        while self.get_status().await.unwrap() == Status::Moving {
+            tokio::time::sleep(sampling_rate).await;
+        }
         Ok(())
     }
 }
@@ -275,3 +285,36 @@ impl SendRecv for ClearCoreMotor {
 //     client.await.unwrap().expect("TODO: panic message");
 //     enable.await.unwrap();
 // }
+
+
+#[tokio::test]
+async fn test_gantry()  {
+    let (tx, rx) = tokio::sync::mpsc::channel(10);
+    let cc1_handler = tokio::spawn(client("192.168.1.11:8888", rx));
+    let motor = ClearCoreMotor::new(0, 800, tx);
+    let task = tokio::spawn(async move { 
+        //motor.enable().await.unwrap();
+        let motor_status = motor.get_status().await.unwrap();
+        assert_eq!(motor_status, Status::Ready);
+        //motor.set_velocity(50.).await.unwrap();
+        motor.relative_move(-22.5).await.unwrap();
+        
+    });
+    let (_,_) = tokio::join!(task, cc1_handler);
+}
+
+#[tokio::test]
+async fn test_gantry_pos()  {
+    let (tx, rx) = tokio::sync::mpsc::channel(10);
+    let cc1_handler = tokio::spawn(client("192.168.1.11:8888", rx));
+    let motor = ClearCoreMotor::new(0, 800, tx);
+    let task = tokio::spawn(async move {
+        let motor_status = motor.get_status().await.unwrap();
+        assert_eq!(motor_status, Status::Ready);
+        //motor.set_velocity(50.).await.unwrap();
+        //motor.relative_move(-1.0).await.unwrap();
+        let pos = motor.get_position().await.unwrap();
+        println!("{pos}");
+    });
+    let (_,_) = tokio::join!(task, cc1_handler);
+}

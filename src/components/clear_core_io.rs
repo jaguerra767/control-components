@@ -4,8 +4,8 @@ use crate::components::send_recv::SendRecv;
 use crate::util::utils::{ascii_to_int, int_to_byte, num_to_bytes};
 use crate::controllers::clear_core::{STX, CR, Message};
 
-#[allow(unused)]
-const CLEAR_CORE_H_BRIDGE_MAX: i16 = 32760;
+pub const CLEAR_CORE_H_BRIDGE_MAX: i16 = 32760;
+
 
 pub struct DigitalInput {
     cmd: [u8;4],
