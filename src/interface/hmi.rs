@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use std::convert::Infallible;
 use std::net::SocketAddr;
 use bytes::Bytes;
 use http_body_util::{Full, combinators::BoxBody, BodyExt, Empty};
@@ -10,6 +9,9 @@ use hyper_util::rt::TokioIo;
 use serde::{Deserialize, Serialize};
 use tokio::net::TcpListener;
 use tokio::sync::mpsc;
+use tokio::sync::oneshot;
+use crate::components::clear_core_motor::{ClearCoreMotor, Status};
+use crate::controllers::clear_core::Message;
 
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all="UPPERCASE")]
@@ -76,21 +78,32 @@ pub enum HmiState {
     Stop,
 }
 
-async fn hello(
-    _: Request<hyper::body::Incoming>,
-    tx: mpsc::Sender<HmiState>,
-) -> Result<Response<Full<Bytes>>, Infallible> {
-    tx.send(HmiState::Start).await.unwrap();
-    Ok(Response::new(Full::new(Bytes::from("Hello, World. I'm Ryo!"))))
+#[derive(Debug, Clone)]
+pub struct UISenders{
+    hmi_state: mpsc::Sender<HmiState>,
+    drive_senders: Vec<mpsc::Sender<Message>>
 }
 
 pub async fn ui_request_handler(
     req: Request<hyper::body::Incoming>,
-    tx: mpsc::Sender<HmiState>
+    tx_s: UISenders
 ) -> Result<Response<BoxBody<Bytes, hyper::Error>>, hyper::Error> {
     match (req.method(), req.uri().path()) {
         (&Method::GET, "/") => Ok(Response::new(full("Hola, soy Ryo!"))),
-        (&Method::GET, "/motor_state") => Ok(Response::new(full("Hola, soy Ryo!"))),
+        (&Method::GET, "/motor_state") => {
+            let mut states = Vec::new();
+            for drive in tx_s.drive_senders{
+              for i in 0..3 {
+                  let state = ClearCoreMotor::new(i, 800, drive.clone())
+                      .get_status()
+                      .await
+                      .unwrap();
+                  states.push(state);
+              }
+            }
+            let serialized_statuses = serde_json::to_string(&states).unwrap();
+            Ok(Response::new(full(serialized_statuses)))
+        }
         (&Method::GET, "/input_state") => Ok(Response::new(full("WIP"))),
         (&Method::GET, "/v1/api/recipe/all") => {Ok(Response::new(full("WIP")))},
         (&Method::POST, "/echo") => { Ok(Response::new(req.into_body().boxed()))},
@@ -104,20 +117,20 @@ pub async fn ui_request_handler(
 }
 
 pub async fn ui_server(
-    tx: mpsc::Sender<HmiState>,
+    txs: UISenders,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let addr = SocketAddr::from(([0, 0, 0, 0], 3000));
     let listener = TcpListener::bind(addr).await?;
     loop {
         let (stream, _) = listener.accept().await?;
         let io = TokioIo::new(stream);
+        let txs = txs.clone();
         // Spawn a tokio task to serve multiple connections concurrently
-        let tx = tx.clone();
         tokio::task::spawn(async move {
             // Finally, we bind the incoming connection to our `hello` service
             if let Err(err) = http1::Builder::new()
                 // `service_fn` converts our function in a `Service`
-                .serve_connection(io, service_fn(|req| ui_request_handler(req, tx.clone())))
+                .serve_connection(io, service_fn(|req| ui_request_handler(req, txs.clone())))
                 .await
             {
                 eprintln!("Error serving connection: {:?}", err);

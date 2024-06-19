@@ -1,6 +1,7 @@
 use std::error::Error;
 use std::result::Result;
 pub use std::time::Duration;
+use serde::Serialize;
 use tokio::sync::mpsc::Sender;
 use crate::components::send_recv::SendRecv;
 use crate::interface::tcp::client;
@@ -8,7 +9,7 @@ use crate::util::utils::{make_prefix, num_to_bytes, ascii_to_int};
 use crate::subsystems::linear_actuator::Message;
 
 
-#[derive(Debug, PartialOrd, PartialEq)]
+#[derive(Debug, PartialOrd, PartialEq, Serialize)]
 pub enum Status {
     Disabled, 
     Enabling,
