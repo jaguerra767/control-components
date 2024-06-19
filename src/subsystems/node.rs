@@ -1,23 +1,24 @@
-
+use std::sync::Arc;
 use crate::components::clear_core_motor::ClearCoreMotor;
 use crate::components::scale::Scale;
 use tokio::time::{Duration, Instant};
 use crate::interface::tcp::client;
 
 pub struct Node {
-    scale: Scale,
+    scale: Arc<Scale>,
     motor: ClearCoreMotor,
 }
 
 impl Node {
     pub fn new(scale: Scale, motor: ClearCoreMotor) -> Self {
+        let scale= Arc::new(scale);
         Self {scale, motor }
     }
 
     pub fn connect(& mut self) {
-        self.scale.connect().expect("Scale failed to connect");
+        //self.scale.connect().expect("Scale failed to connect");
     }
-    
+
 
     pub async fn dispense(&self,
                           serving: f64,
@@ -34,9 +35,9 @@ impl Node {
         // Initialize dispense tracking variables
         let init_time = Instant::now();
         let mut last_sent_motor = Instant::now();
-        
-        
-        
+
+
+
         let init_weight = self.scale.weight_by_median(500, 100)
             .expect("Failed to weigh scale");
         let mut curr_weight = init_weight;
@@ -81,8 +82,8 @@ impl Node {
         let mut last_sent_motor = Instant::now();
         let init_weight = self.scale.weight_by_median(500, 100)
             .expect("Failed to weigh scale");
-        
-        
+
+
         let mut curr_weight = init_weight;
         let timeout = dispense_time;
         let send_command_delay = Duration::from_millis(250);
@@ -161,3 +162,13 @@ async fn test_node() {
     let _ = client.await.unwrap();
 }
 
+// #[tokio::test]
+// async fn test_node_again() {
+//     let (tx, rx) = tokio::sync::mpsc::channel(10);
+//     let client = tokio::spawn(client("192.168.1.12:8888", rx));
+//     let scale = Scale::new(716709);
+//     let node = Node::new(scale, ClearCoreMotor::new(0, 800, tx));
+//     
+//     let dispense = tokio::spawn(
+//         node.timed_dispense( Duration::from_secs(5), 200, 0.5));
+// }

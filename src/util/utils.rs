@@ -40,6 +40,12 @@ fn test_int_to_bytes() {
     assert_eq!(bytes, [50,51,48,48]);
     let bytes = num_to_bytes(-3400);
     assert_eq!(bytes, [45,51,52,48,48]);
+    let bytes = num_to_bytes(2300.0);
+    assert_eq!(bytes, [50,51,48,48]);
+    let bytes = num_to_bytes(-3400.0);
+    assert_eq!(bytes, [45,51,52,48,48]);
+    let bytes = num_to_bytes((-0.5 * 800.0) as isize);
+    println!("{:?}", bytes);
 }
 
 #[test]
