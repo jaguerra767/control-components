@@ -51,7 +51,7 @@ impl Scale {
         // coefficient.
         let readings: Vec<f64>;
         (scale, readings) = Scale::get_readings(scale)?;
-        let weight = dot(readings, scale.cell_coefficients.clone()) - scale.tare_offset.clone();
+        let weight = dot(readings, scale.cell_coefficients.clone()) - scale.tare_offset;
         Ok((scale, weight))
 
     }
@@ -79,23 +79,26 @@ impl Scale {
 
     }
 
-    // fn get_medians(mut scale: Self, time: Duration, sample_rate: usize) -> Result<Vec<Vec<f64>>, Box<dyn Error>> {
-    //     let mut readings: Vec<Vec<f64>> = vec![vec![]; 4];
-    //     let mut medians = vec![0.; 4];
-    //     let delay = Duration::from_millis(1000/sample_rate as u64);
-    //     let _start_time = Instant::now();
-    //     for _sample in 0..samples {
-    //         for cell in 0..self.cells.len() {
-    //             readings[cell].push(self.cells[cell].get_reading()?);
-    //         }
-    //         sleep(delay);
-    //     }
-    //     for cell in 0..self.cells.len() {
-    //         medians[cell] = Scale::median(&mut readings[cell]);
-    //     }
-    //
-    //     Ok(vec![medians])
-    // }
+    pub fn get_medians(mut scale: Self, time: Duration, sample_rate: f64) -> (Self, Vec<f64>) {
+        let mut readings: Vec<Vec<f64>> = vec![vec![]; 4];
+        let mut medians = vec![0.; 4];
+        let delay = Duration::from_secs_f64(1./ sample_rate);
+        let start_time = Instant::now();
+        loop {
+            let curr_time = Instant::now();
+            if curr_time - start_time > time {
+                break
+            }
+            for cell in 0..scale.cells.len() {
+                readings[cell].push(scale.cells[cell].get_reading().expect("Failed to get cell reading"));
+            }
+            sleep(delay);
+        }
+        for cell in 0..scale.cells.len() {
+            medians[cell] = Scale::median(&mut readings[cell]);
+        }
+        (scale, medians)
+    }
 
 
     // pub fn tare(mut self, time: Duration, sample_rate: usize) -> Result<(), Box<dyn Error>> {
@@ -105,25 +108,26 @@ impl Scale {
     // }
 
 //
-//     pub fn calibrate(&mut self, test_mass: f64, samples: usize, sample_rate: usize) -> Result<(), Box<dyn Error>> {
-//         let mut trial_readings = vec![vec![0.; self.cells.len()]; self.cells.len()];
-//         let test_mass_vector = vec![vec![test_mass]; self.cells.len()];
-//         for trial in 0..self.cells.len() {
+//     pub fn calibrate(mut scale: Self, test_mass: f64, time: Duration, sample_rate: f64) -> Result<(), Box<dyn Error>> {
+//         // let mut trial_readings = vec![vec![0.; self.cells.len()]; self.cells.len()];
+//         // let test_mass_vector = vec![vec![test_mass]; self.cells.len()];
+//         let mut trial_readings = vec![0.; 5];
+//         for trial in 0..scale.cells.len() {
 //             println!("Place/move test mass and press key");
 //             let mut input = String::new();
 //             let _user_input = io::stdin().read_line(&mut input);
 //             println!("Weighing...");
-//             let readings = self.get_medians(samples, sample_rate)?;
+//             let (scale, readings) = Scale::get_medians(scale, time, sample_rate);
 //             trial_readings[trial].clone_from(&LinearSystem::transpose(&readings)[0]);
 //         }
 //         println!("DEBUG: {:?}, {:?}", trial_readings, test_mass_vector);
 //         let mut system = LinearSystem::new(trial_readings, test_mass_vector)?;
 //         system.display();
 //         self.change_coefficients(system.solve()?);
-//
+// 
 //         Ok(())
 //     }
-//
+
     pub fn change_coefficients(mut scale: Self, coefficients: Vec<f64>) -> Self {
         scale.cell_coefficients = coefficients;
         scale
@@ -198,12 +202,28 @@ fn live_weigh_scale() -> Result<(), Box<dyn Error>> {
 
 #[test]
 fn weigh_scale() -> Result<(), Box<dyn Error>> {
-    let mut scale = Scale::new(716709);
+    let mut scale = Scale::new(716620);
     scale = Scale::connect(scale)?;
-    let (scale, weight) = Scale::weight_by_median(scale, Duration::from_secs(1), 100)?;
-    println!("Weight: {:?}", weight);
+    // scale = Scale::change_coefficients(scale, vec![-4926943.639406107, 2486765.6938639805, -4985950.215221712, 4799388.712869379]);
+    scale = Scale::change_coefficients(scale, vec![4780449.913365008, 2596299.373482612, -4975764.006916862, 4998589.065848139]);
+    let (scale, weight) = Scale::weight_by_median(scale, Duration::from_secs(3), 50)?;
+    println!("Weight: {:?}", weight-4268.);
 
     Ok(())
+}
+
+#[test]
+fn test_dot() {
+    let vec1 = vec![1., 2., 3., 4.];
+    let vec2 = vec![1., 1., 1., 0.];
+    assert_eq!(dot(vec1, vec2), 6.);
+}
+
+#[test]
+fn test_median() {
+    let mut arr = vec![0., 6., 1., 3., 4.];
+    let ans = Scale::median(&mut arr);
+    assert_eq!(ans, 3.);
 }
 //
 // #[test]
