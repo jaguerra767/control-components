@@ -1,37 +1,39 @@
+use crate::components::send_recv::SendRecv;
+use crate::interface::tcp::client;
+use crate::subsystems::linear_actuator::Message;
+use crate::util::utils::{ascii_to_int, make_prefix, num_to_bytes};
+use serde::Serialize;
 use std::error::Error;
 use std::result::Result;
 pub use std::time::Duration;
-use serde::Serialize;
 use tokio::sync::mpsc::Sender;
-use crate::components::send_recv::SendRecv;
-use crate::interface::tcp::client;
-use crate::util::utils::{make_prefix, num_to_bytes, ascii_to_int};
-use crate::subsystems::linear_actuator::Message;
-
 
 #[derive(Debug, PartialOrd, PartialEq, Serialize)]
 pub enum Status {
-    Disabled, 
+    Disabled,
     Enabling,
     Faulted,
     Ready,
     Moving,
-    Unknown
+    Unknown,
 }
-
 
 pub struct ClearCoreMotor {
     id: u8,
-    prefix: [u8;3],
+    prefix: [u8; 3],
     scale: isize,
-    drive_sender: Sender<Message>
+    drive_sender: Sender<Message>,
 }
-
 
 impl ClearCoreMotor {
     pub fn new(id: u8, scale: isize, drive_sender: Sender<Message>) -> Self {
         let prefix = make_prefix(b'M', id);
-        ClearCoreMotor { id, prefix, scale, drive_sender }
+        ClearCoreMotor {
+            id,
+            prefix,
+            scale,
+            drive_sender,
+        }
     }
 
     pub async fn enable(&self) -> Result<&Self, Box<dyn Error>> {
@@ -104,7 +106,7 @@ impl ClearCoreMotor {
 
     pub async fn set_velocity(&self, velocity: f64) -> Result<(), Box<dyn Error>> {
         if velocity < 0. {
-            return Err(Box::from("Velocity must be positive"))
+            return Err(Box::from("Velocity must be positive"));
         }
         let vel = num_to_bytes((velocity * (self.scale as f64)).trunc() as isize);
         let mut msg: Vec<u8> = Vec::with_capacity(vel.len() + self.prefix.len() + 1);
@@ -142,19 +144,19 @@ impl ClearCoreMotor {
         let status_cmd = [2, b'M', self.id + 48, b'G', b'S', 13];
         let res = self.write(status_cmd.as_slice()).await?;
         match res[3] {
-            48 => { Ok(Status::Disabled) },
-            49 => { Ok(Status::Enabling) },
-            50 => { Ok(Status::Faulted) },
-            51 => { Ok(Status::Ready) },
-            52 => { Ok(Status::Moving) },
-            _ => { Ok(Status::Unknown) }
+            48 => Ok(Status::Disabled),
+            49 => Ok(Status::Enabling),
+            50 => Ok(Status::Faulted),
+            51 => Ok(Status::Ready),
+            52 => Ok(Status::Moving),
+            _ => Ok(Status::Unknown),
         }
     }
 
     pub async fn get_position(&self) -> Result<f64, Box<dyn Error>> {
         let get_pos_cmd = [2, b'M', self.id + 48, b'G', b'P', 13];
         let res = self.write(get_pos_cmd.as_slice()).await?;
-        let pos = (ascii_to_int(res.as_slice()) as f64)/ (self.scale as f64);
+        let pos = (ascii_to_int(res.as_slice()) as f64) / (self.scale as f64);
         Ok(pos)
     }
 
@@ -163,7 +165,7 @@ impl ClearCoreMotor {
         self.write(clear_cmd.as_slice()).await?;
         Ok(())
     }
-    
+
     pub async fn wait_for_move(&self, sampling_rate: Duration) -> Result<(), Box<dyn Error>> {
         while self.get_status().await.unwrap() == Status::Moving {
             tokio::time::sleep(sampling_rate).await;
@@ -177,7 +179,6 @@ impl SendRecv for ClearCoreMotor {
         &self.drive_sender
     }
 }
-
 
 //
 // #[tokio::test]
@@ -286,25 +287,23 @@ impl SendRecv for ClearCoreMotor {
 //     enable.await.unwrap();
 // }
 
-
 #[tokio::test]
-async fn test_gantry()  {
+async fn test_gantry() {
     let (tx, rx) = tokio::sync::mpsc::channel(10);
     let cc1_handler = tokio::spawn(client("192.168.1.11:8888", rx));
     let motor = ClearCoreMotor::new(0, 800, tx);
-    let task = tokio::spawn(async move { 
+    let task = tokio::spawn(async move {
         //motor.enable().await.unwrap();
         let motor_status = motor.get_status().await.unwrap();
         assert_eq!(motor_status, Status::Ready);
         //motor.set_velocity(50.).await.unwrap();
         motor.relative_move(-22.5).await.unwrap();
-        
     });
-    let (_,_) = tokio::join!(task, cc1_handler);
+    let (_, _) = tokio::join!(task, cc1_handler);
 }
 
 #[tokio::test]
-async fn test_gantry_pos()  {
+async fn test_gantry_pos() {
     let (tx, rx) = tokio::sync::mpsc::channel(10);
     let cc1_handler = tokio::spawn(client("192.168.1.11:8888", rx));
     let motor = ClearCoreMotor::new(0, 800, tx);
@@ -316,5 +315,5 @@ async fn test_gantry_pos()  {
         let pos = motor.get_position().await.unwrap();
         println!("{pos}");
     });
-    let (_,_) = tokio::join!(task, cc1_handler);
+    let (_, _) = tokio::join!(task, cc1_handler);
 }

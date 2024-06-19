@@ -1,10 +1,13 @@
+use crate::controllers::clear_core::Message;
 use std::error::Error;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpStream, ToSocketAddrs};
 use tokio::sync::mpsc;
-use crate::controllers::clear_core::Message;
 
-pub async fn client<T: ToSocketAddrs>(addr: T, mut msg: mpsc::Receiver<Message>) -> Result<(), Box<dyn Error + Send + Sync>> {
+pub async fn client<T: ToSocketAddrs>(
+    addr: T,
+    mut msg: mpsc::Receiver<Message>,
+) -> Result<(), Box<dyn Error + Send + Sync>> {
     let mut stream = TcpStream::connect(addr).await?;
     while let Some(message) = msg.recv().await {
         stream.write_all(&message.buffer).await?;
