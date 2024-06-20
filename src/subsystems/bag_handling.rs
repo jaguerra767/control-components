@@ -72,7 +72,7 @@ impl BagDispenser {
     }
 }
 
-async fn load_bag(bag_dispenser: BagDispenser, bag_gripper: BagGripper, blower: Output) {
+pub async fn load_bag(bag_dispenser: BagDispenser, bag_gripper: BagGripper, blower: Output) {
     bag_dispenser.dispense().await.unwrap();
     blower.set_state(OutputState::On).await.unwrap();
     bag_gripper.open().await.unwrap();
