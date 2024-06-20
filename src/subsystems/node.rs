@@ -1,10 +1,12 @@
 use crate::components::clear_core_motor::ClearCoreMotor;
 use crate::components::scale::Scale;
 use std::error::Error;
+use serde::Deserialize;
 use tokio::sync::mpsc::Receiver;
 use tokio::sync::oneshot;
 use tokio::time::{Duration, Instant};
 
+#[derive(Deserialize)]
 pub struct DispensingParameters {
     serving_weight: Option<f64>,
     timeout: Option<Duration>,
