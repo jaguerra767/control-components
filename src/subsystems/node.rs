@@ -1,12 +1,13 @@
-use tokio::join;
-
 use crate::components::clear_core_motor::ClearCoreMotor;
 use crate::components::scale::Scale;
-use crate::interface::tcp::client;
+use std::error::Error;
+use tokio::sync::mpsc::Receiver;
+use tokio::sync::oneshot;
 use tokio::time::{Duration, Instant};
 
 pub struct DispensingParameters {
-    serving_weight: f64,
+    serving_weight: Option<f64>,
+    timeout: Option<Duration>,
     motor_speed: f64,
     sample_rate: f64,
     cutoff_frequency: f64,
@@ -14,8 +15,9 @@ pub struct DispensingParameters {
     stop_offset: f64,
 }
 impl DispensingParameters {
-    pub fn new(
+    pub fn with_weight(
         serving_weight: f64,
+        timeout: Duration,
         motor_speed: f64,
         sample_rate: f64,
         cutoff_frequency: f64,
@@ -23,7 +25,26 @@ impl DispensingParameters {
         stop_offset: f64,
     ) -> Self {
         Self {
-            serving_weight,
+            serving_weight: Some(serving_weight),
+            timeout: Some(timeout),
+            motor_speed,
+            sample_rate,
+            cutoff_frequency,
+            check_offset,
+            stop_offset,
+        }
+    }
+    pub fn only_timeout(
+        timeout: Duration,
+        motor_speed: f64,
+        sample_rate: f64,
+        cutoff_frequency: f64,
+        check_offset: f64,
+        stop_offset: f64,
+    ) -> Self {
+        Self {
+            serving_weight: None,
+            timeout: Some(timeout),
             motor_speed,
             sample_rate,
             cutoff_frequency,
@@ -99,7 +120,7 @@ impl Node {
             .await;
 
         let mut curr_weight = init_weight;
-        let target_weight = init_weight - parameters.serving_weight;
+        let target_weight = init_weight - parameters.serving_weight.unwrap();
         let mut reading: f64;
         let mut final_weight: f64;
 
@@ -142,7 +163,7 @@ impl Node {
 
             if curr_time - last_sent_motor > send_command_delay {
                 last_sent_motor = Instant::now();
-                let err = (curr_weight - target_weight) / parameters.serving_weight;
+                let err = (curr_weight - target_weight) / parameters.serving_weight.unwrap();
                 let new_motor_speed = err * parameters.motor_speed;
                 if new_motor_speed >= 0.1 {
                     self.motor
@@ -160,18 +181,10 @@ impl Node {
         (scale, times, weights)
     }
     //
-    pub async fn timed_dispense(
-        &self,
-        scale: Scale,
-        dispense_time: Duration,
-        sample_rate: f64,
-        cutoff_frequency: f64,
-        motor_speed: f64,
-        // ) -> (Scale, Vec<Duration>, Vec<f64>) {
-    ) -> Scale {
+    pub async fn timed_dispense(&self, scale: Scale, parameters: DispensingParameters) -> Scale {
         // Set LP filter values
-        let filter_period = 1. / sample_rate;
-        let filter_rc = 1. / (cutoff_frequency * 2. * std::f64::consts::PI);
+        let filter_period = 1. / parameters.sample_rate;
+        let filter_rc = 1. / (parameters.cutoff_frequency * 2. * std::f64::consts::PI);
         let filter_a = filter_period / (filter_period + filter_rc);
         let filter_b = filter_rc / (filter_period + filter_rc);
 
@@ -185,14 +198,13 @@ impl Node {
 
         let mut curr_weight = init_weight;
         let mut reading: f64;
-        let timeout = dispense_time;
         let send_command_delay = Duration::from_millis(250);
 
         // Data tracking
         let mut times = Vec::new();
         let mut weights = Vec::new();
         self.motor
-            .set_velocity(motor_speed)
+            .set_velocity(parameters.motor_speed)
             .await
             .expect("TODO: panic message");
         self.motor
@@ -201,11 +213,10 @@ impl Node {
             .expect("Failed to update");
         loop {
             let curr_time = Instant::now();
-            if curr_time - init_time > timeout {
+            if curr_time - init_time > parameters.timeout.unwrap() {
                 self.motor.abrupt_stop().await.expect("Failed to stop");
                 break;
             }
-            // curr_weight = filter_a * self.read_scale(scale).expect("Failed to weigh scale") + filter_b * curr_weight;
             (scale, reading) = self.read_scale(scale).await;
             curr_weight = filter_a * reading + filter_b * curr_weight;
 
@@ -221,35 +232,49 @@ impl Node {
             }
         }
 
-        // let final_weight = self.scale.weight_by_median(500, 100).expect("Failed to weigh scale");
         let (scale, final_weight) = self
             .read_scale_median(scale, Duration::from_secs(3), 200)
             .await;
         println!("Dispensed: {:.1} g", init_weight - final_weight);
-        // (scale, times, weights)
         scale
+    }
+    pub async fn actor(
+        &self,
+        phidget_id: i32,
+        mut rx: Receiver<NodeCommand>,
+    ) -> Result<(), Box<dyn Error + Send + Sync>> {
+        let mut scale = self.connect_scale(Scale::new(phidget_id)).await;
+        self.motor.enable().await.unwrap();
+        while let Some(cmd) = rx.recv().await {
+            match cmd {
+                NodeCommand::Dispense(p) => {
+                    if let Some(_) = p.serving_weight {
+                        (scale, _, _) = self.dispense(scale, p).await;
+                    } else {
+                        scale = self.timed_dispense(scale, p).await;
+                    }
+                }
+                NodeCommand::ReadScale(sender) => {
+                    let weight: f64;
+                    (scale, weight) = self.read_scale(scale).await;
+                    sender.send(weight).unwrap();
+                }
+                NodeCommand::ReadScaleMedian(sender) => {
+                    //TODO: Implement
+                    let weight: f64;
+                    (scale, weight) = self
+                        .read_scale_median(scale, Duration::from_secs(2), 50)
+                        .await;
+                    sender.send(weight).unwrap();
+                }
+            }
+        }
+        Ok(())
     }
 }
 
-#[tokio::test]
-async fn motor_test() {
-    tokio::time::sleep(Duration::from_secs(2)).await;
-    let (tx, rx) = tokio::sync::mpsc::channel(10);
-    let client = tokio::spawn(client("192.168.1.12:8888", rx));
-    ClearCoreMotor::new(0, 800, tx.clone())
-        .enable()
-        .await
-        .unwrap();
-    let task = tokio::spawn(async move {
-        let motor = ClearCoreMotor::new(0, 800, tx);
-        motor.set_velocity(0.3).await.unwrap();
-        motor.relative_move(100000.0).await.unwrap();
-        for _ in 0..10 {
-            motor.relative_move(100000.0).await.unwrap();
-            tokio::time::sleep(Duration::from_millis(1000)).await;
-        }
-        motor.abrupt_stop().await.unwrap();
-    });
-    let (_, _) = join!(client, task);
-    println!("DEBUG: Complete!")
+pub enum NodeCommand {
+    Dispense(DispensingParameters),
+    ReadScale(oneshot::Sender<f64>),
+    ReadScaleMedian(oneshot::Sender<f64>),
 }

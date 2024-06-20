@@ -22,16 +22,4 @@ pub trait SendRecv {
             Ok(res)
         }
     }
-
-    // fn get_ip_address<T: ToSocketAddrs>(&self) -> T;
-    // fn get_client<T: ToSocketAddrs + Sync + Send>(&self) -> impl Future<Output = Result<(), Box<dyn Error>>> + Send where Self:Sync {
-    //     async {
-    //         let mut stream = TcpStream::connect(self.get_ip_address::<T>()).await?;
-    //         let mut rx = self.get_receiver();
-    //         while let Some(message) = rx.recv().await {
-    //             stream.write_all()
-    //         }
-    //         Ok(())
-    //     }
-    // }
 }

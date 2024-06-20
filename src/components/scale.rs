@@ -108,33 +108,6 @@ impl Scale {
         (scale, medians)
     }
 
-    // pub fn tare(mut self, time: Duration, sample_rate: usize) -> Result<(), Box<dyn Error>> {
-    //     let (self, resting_weight) = self.weight_by_median(time, sample_rate)?;
-    //     self.tare_offset = self.tare_offset.clone() + resting_weight;
-    //     Ok(())
-    // }
-
-    //
-    //     pub fn calibrate(mut scale: Self, test_mass: f64, time: Duration, sample_rate: f64) -> Result<(), Box<dyn Error>> {
-    //         // let mut trial_readings = vec![vec![0.; self.cells.len()]; self.cells.len()];
-    //         // let test_mass_vector = vec![vec![test_mass]; self.cells.len()];
-    //         let mut trial_readings = vec![0.; 5];
-    //         for trial in 0..scale.cells.len() {
-    //             println!("Place/move test mass and press key");
-    //             let mut input = String::new();
-    //             let _user_input = io::stdin().read_line(&mut input);
-    //             println!("Weighing...");
-    //             let (scale, readings) = Scale::get_medians(scale, time, sample_rate);
-    //             trial_readings[trial].clone_from(&LinearSystem::transpose(&readings)[0]);
-    //         }
-    //         println!("DEBUG: {:?}, {:?}", trial_readings, test_mass_vector);
-    //         let mut system = LinearSystem::new(trial_readings, test_mass_vector)?;
-    //         system.display();
-    //         self.change_coefficients(system.solve()?);
-    //
-    //         Ok(())
-    //     }
-
     pub fn change_coefficients(mut scale: Self, coefficients: Vec<f64>) -> Self {
         scale.cell_coefficients = coefficients;
         scale
