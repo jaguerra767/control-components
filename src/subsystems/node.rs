@@ -260,7 +260,6 @@ impl Node {
                     sender.send(weight).unwrap();
                 }
                 NodeCommand::ReadScaleMedian(sender) => {
-                    //TODO: Implement
                     let weight: f64;
                     (scale, weight) = self
                         .read_scale_median(scale, Duration::from_secs(2), 50)
