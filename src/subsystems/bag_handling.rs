@@ -5,6 +5,8 @@ use crate::subsystems::linear_actuator::{LinearActuator, SimpleLinearActuator};
 use std::error::Error;
 use std::time::Duration;
 use tokio::time::sleep;
+use crate::subsystems::gantry::GantryCommand;
+use crate::subsystems::gantry::GantryCommand::GoTo;
 
 pub struct BagGripper {
     motor: ClearCoreMotor,
@@ -72,7 +74,9 @@ impl BagDispenser {
     }
 }
 
-pub async fn load_bag(bag_dispenser: BagDispenser, bag_gripper: BagGripper, blower: Output) {
+pub async fn load_bag(bag_dispenser: BagDispenser, bag_gripper: BagGripper, blower: Output, gantry_tx: tokio::sync::mpsc::Sender<GantryCommand>) {
+    gantry_tx.send(GoTo(-0.25)).await.unwrap();
+    bag_gripper.close().await.unwrap();
     bag_dispenser.dispense().await.unwrap();
     blower.set_state(OutputState::On).await.unwrap();
     bag_gripper.open().await.unwrap();
@@ -164,7 +168,7 @@ async fn test_bag_loading() {
             [0.4, -0.8, 0.4].to_vec(),
         );
         let blower = Output::new(5, tx2);
-        load_bag(dispenser, gripper, blower).await;
+        load_bag(dispenser, gripper, blower, /* tokio::sync::mpsc::Sender<GantryCommand> */).await;
         let gantry = ClearCoreMotor::new(0, 800, tx);
 
         tokio::time::sleep(Duration::from_millis(100)).await;

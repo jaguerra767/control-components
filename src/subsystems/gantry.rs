@@ -16,6 +16,7 @@ pub async fn gantry(
 ) -> Result<(), Box<dyn Error + Send + Sync>> {
     motor.set_acceleration(40.).await.unwrap();
     motor.set_velocity(300.).await.unwrap();
+    motor.enable().await.unwrap();
     while let Some(cmd) = rx.recv().await {
         match cmd {
             GantryCommand::GetPosition(sender) => {
