@@ -74,8 +74,7 @@ impl BagDispenser {
     }
 }
 
-pub async fn load_bag(bag_dispenser: BagDispenser, bag_gripper: BagGripper, blower: Output, gantry_tx: tokio::sync::mpsc::Sender<GantryCommand>) {
-    gantry_tx.send(GoTo(-0.25)).await.unwrap();
+pub async fn load_bag(bag_dispenser: BagDispenser, bag_gripper: BagGripper, blower: Output) {
     bag_gripper.close().await.unwrap();
     bag_dispenser.dispense().await.unwrap();
     blower.set_state(OutputState::On).await.unwrap();
