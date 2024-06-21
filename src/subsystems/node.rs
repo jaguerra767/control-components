@@ -5,6 +5,7 @@ use serde::Deserialize;
 use tokio::sync::mpsc::Receiver;
 use tokio::sync::oneshot;
 use tokio::time::{Duration, Instant};
+use crate::interface::tcp::client;
 
 #[derive(Deserialize)]
 pub struct DispensingParameters {
@@ -246,11 +247,12 @@ impl Node {
         mut rx: Receiver<NodeCommand>,
     ) -> Result<(), Box<dyn Error + Send + Sync>> {
         let mut scale = self.connect_scale(Scale::new(phidget_id)).await;
+        scale = Scale::change_coefficients(scale, vec![-5897877.72181665, 5263019.161459, -4005678.071311, 4000763.38549006]);
         self.motor.enable().await.unwrap();
         while let Some(cmd) = rx.recv().await {
             match cmd {
                 NodeCommand::Dispense(p) => {
-                    if let Some(_) = p.serving_weight {
+                    if p.serving_weight.is_some() {
                         (scale, _, _) = self.dispense(scale, p).await;
                     } else {
                         scale = self.timed_dispense(scale, p).await;
@@ -279,3 +281,41 @@ pub enum NodeCommand {
     ReadScale(oneshot::Sender<f64>),
     ReadScaleMedian(oneshot::Sender<f64>),
 }
+
+#[tokio::test]
+async fn test() {
+    let (tx, rx) = tokio::sync::mpsc::channel(10);
+    let (ntx, nrx) = tokio::sync::mpsc::channel(10);
+    let cc1_handler = tokio::spawn(client("192.168.1.12:8888", rx));
+    let node_handler = tokio::spawn(async move {
+        let node = Node::new(ClearCoreMotor::new(3, 800, tx));
+        node.actor(716620, nrx).await.expect("TODO: panic message");
+    });
+
+    let weigh = tokio::spawn( async move {
+        let (rep_tx, rep_rx) = oneshot::channel();
+        let msg = NodeCommand::ReadScaleMedian(rep_tx);
+        ntx.send(msg).await.unwrap();
+        let rep = rep_rx.await.unwrap();
+        println!("Weight reading: {:.1}", rep-5383.);
+    });
+
+    let (_, _, _) = tokio::join!(weigh, node_handler, cc1_handler);
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
