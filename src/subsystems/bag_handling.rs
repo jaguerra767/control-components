@@ -1,12 +1,10 @@
-use crate::components::clear_core_io::{DigitalInput, HBridgeState, Output, OutputState};
+use crate::components::clear_core_io::{Input, HBridgeState, Output, OutputState};
 use crate::components::clear_core_motor::{ClearCoreMotor, Status};
 use crate::interface::tcp::client;
 use crate::subsystems::linear_actuator::{LinearActuator, SimpleLinearActuator};
 use std::error::Error;
 use std::time::Duration;
 use tokio::time::sleep;
-use crate::subsystems::gantry::GantryCommand;
-use crate::subsystems::gantry::GantryCommand::GoTo;
 
 pub struct BagGripper {
     motor: ClearCoreMotor,
@@ -48,11 +46,11 @@ impl BagGripper {
 
 pub struct BagDispenser {
     motor: ClearCoreMotor,
-    photo_eye: DigitalInput,
+    photo_eye: Input,
 }
 
 impl BagDispenser {
-    pub fn new(motor: ClearCoreMotor, photo_eye: DigitalInput) -> Self {
+    pub fn new(motor: ClearCoreMotor, photo_eye: Input) -> Self {
         Self { motor, photo_eye }
     }
     pub async fn dispense(&self) -> Result<(), Box<dyn Error>> {
@@ -96,7 +94,7 @@ async fn test_bag_dispense() {
         motor.enable().await.unwrap();
         let state = motor.get_status().await.unwrap();
         assert_eq!(state, Status::Ready);
-        let photo_eye = DigitalInput::new(1, tx);
+        let photo_eye = Input::new(1, tx);
         let dispenser = BagDispenser::new(motor, photo_eye);
         dispenser.dispense().await.unwrap();
         dispenser.pull_back().await.unwrap();
@@ -160,7 +158,7 @@ async fn test_bag_loading() {
         disp_motor.enable().await.unwrap();
         grip_motor.enable().await.unwrap();
         tokio::time::sleep(Duration::from_millis(500)).await;
-        let dispenser = BagDispenser::new(disp_motor, DigitalInput::new(1, tx.clone()));
+        let dispenser = BagDispenser::new(disp_motor, Input::new(1, tx.clone()));
         let gripper = BagGripper::new(
             grip_motor,
             SimpleLinearActuator::new(tx2.clone(), 4, 0),

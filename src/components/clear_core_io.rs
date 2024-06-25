@@ -6,12 +6,12 @@ use tokio::sync::mpsc::Sender;
 
 pub const CLEAR_CORE_H_BRIDGE_MAX: i16 = 32760;
 
-pub struct DigitalInput {
+pub struct Input {
     cmd: [u8; 4],
     drive_sender: Sender<Message>,
 }
 
-impl DigitalInput {
+impl Input {
     pub fn new(id: u8, drive_sender: Sender<Message>) -> Self {
         let cmd = [STX, b'I', int_to_byte(id), CR];
         Self { cmd, drive_sender }
@@ -23,7 +23,7 @@ impl DigitalInput {
     }
 }
 
-impl SendRecv for DigitalInput {
+impl SendRecv for Input {
     fn get_sender(&self) -> &Sender<Message> {
         &self.drive_sender
     }
