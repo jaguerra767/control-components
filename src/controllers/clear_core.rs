@@ -1,9 +1,7 @@
-use tokio::net::ToSocketAddrs;
 use tokio::sync::{oneshot};
-use tokio::sync::mpsc::{channel, Sender};
+use tokio::sync::mpsc::Sender;
 use crate::components::clear_core_io::{Input, Output};
 use crate::components::clear_core_motor::ClearCoreMotor;
-use crate::interface::tcp::client;
 
 
 pub const STX: u8 = 2;
@@ -70,17 +68,6 @@ impl Controller {
         self.outputs.get(id)
     }
         
-}
-
-//TODO: RENAME!!!!!!!
-
-pub async fn actor<T: ToSocketAddrs + Sync>(addr: &'static T) {
-    let (tx, rx) = channel(100);
-    let client_handle = tokio::spawn(async  {
-        //we can use expect because it's totally cool to panic here
-       client(addr, rx).await.expect("TODO: panic message"); 
-    });
-    //TODO: WIP DON"T USE
 }
 
 
