@@ -1,7 +1,7 @@
 use std::error::Error;
 use std::future::Future;
 use std::net::SocketAddr;
-use tokio::io::AsyncReadExt;
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::join;
 use tokio::net::{TcpListener, ToSocketAddrs};
 use tokio::sync::{oneshot};
@@ -151,7 +151,8 @@ async fn test_controller_with_client() {
         stream.read(reply_buffer.as_mut_slice()).await.unwrap();
         assert_eq!(reply_buffer[0], 0x02);
         assert_eq!(reply_buffer[1], b'M');
-        println!("{:?}", reply_buffer);
+        let reply = [2, reply_buffer[1], reply_buffer[2], b'_'];
+        stream.write_all(reply.as_slice()).await.unwrap();
     });
     
     //controller returns its rx that we can use it in its partner client actor, I'm debating whether

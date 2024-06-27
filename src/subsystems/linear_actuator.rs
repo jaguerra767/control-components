@@ -1,8 +1,7 @@
-use crate::components::clear_core_io::{AnalogInput, HBridge, HBridgeState, Input, Output, OutputState};
+use crate::components::clear_core_io::{AnalogInput, HBridge, HBridgeState, Output, OutputState};
 pub use crate::controllers::clear_core::Message;
 use std::error::Error;
 use std::future::Future;
-use tokio::sync::mpsc::Sender;
 
 //TODO: Move this to a hatches module
 #[allow(unused)]

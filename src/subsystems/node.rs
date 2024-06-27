@@ -5,7 +5,6 @@ use serde::Deserialize;
 use tokio::sync::mpsc::Receiver;
 use tokio::sync::oneshot;
 use tokio::time::{Duration, Instant};
-use crate::interface::tcp::client;
 
 #[derive(Deserialize)]
 pub struct DispensingParameters {

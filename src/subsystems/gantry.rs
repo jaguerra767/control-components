@@ -1,5 +1,4 @@
 use crate::components::clear_core_motor::{ClearCoreMotor, Status};
-use crate::interface::tcp::client;
 use std::error::Error;
 use std::time::Duration;
 use tokio::sync::mpsc::Receiver;
