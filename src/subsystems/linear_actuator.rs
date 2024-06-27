@@ -1,4 +1,4 @@
-use crate::components::clear_core_io::{AnalogInput, HBridge, HBridgeState, Output, OutputState};
+use crate::components::clear_core_io::{AnalogInput, HBridge, HBridgeState, Input, Output, OutputState};
 pub use crate::controllers::clear_core::Message;
 use std::error::Error;
 use std::future::Future;
@@ -21,12 +21,12 @@ pub trait LinearActuator {
     ) -> impl Future<Output = Result<(), Box<dyn Error>>> + Send;
 }
 
-pub struct SimpleLinearActuator {
-    output: HBridge,
-    feedback: AnalogInput,
+pub struct SimpleLinearActuator <'a> {
+    output: &'a HBridge,
+    feedback: &'a AnalogInput,
 }
 
-impl LinearActuator for SimpleLinearActuator {
+impl <'a> LinearActuator for SimpleLinearActuator <'a> {
     async fn get_feedback(&self) -> Result<isize, Box<dyn Error>> {
         self.feedback.get_state().await
     }
@@ -36,16 +36,12 @@ impl LinearActuator for SimpleLinearActuator {
     }
 }
 
-impl SimpleLinearActuator {
-    pub fn new(sender: Sender<Message>, output_id: u8, feedback_id: u8) -> Self {
+impl <'a> SimpleLinearActuator <'a> {
+    pub fn new(output: &'a HBridge, feedback: &'a AnalogInput) -> Self {
         Self {
-            output: HBridge::new(output_id, 32000, sender.clone()),
-            feedback: AnalogInput::new(feedback_id, sender),
+            output,
+            feedback
         }
-    }
-
-    pub fn from_io(output: HBridge, feedback: AnalogInput) -> Self {
-        Self { output, feedback }
     }
 }
 
@@ -55,58 +51,21 @@ pub enum ActuatorCh {
     Chb,
 }
 
-pub struct RelayHBridge {
-    fb_pair: (AnalogInput, Option<AnalogInput>),
-    output_pair: (Output, Output),
+pub struct RelayHBridge <'a> {
+    fb_pair: (&'a AnalogInput, Option<&'a AnalogInput>),
+    output_pair: (&'a Output, &'a Output),
 }
 
-impl RelayHBridge {
-    pub fn new(sender: Sender<Message>, output_pair_ids: (u8, u8), feedback_id: u8) -> Self {
-        Self {
-            fb_pair: (AnalogInput::new(feedback_id, sender.clone()), None),
-            output_pair: (
-                Output::new(output_pair_ids.0, sender.clone()),
-                Output::new(output_pair_ids.1, sender),
-            ),
-        }
-    }
-
-    pub fn with_dual_feedback(
-        sender: Sender<Message>,
-        feedback_ids: (u8, u8),
-        output_ids: (u8, u8),
-    ) -> Self {
-        Self {
-            fb_pair: (
-                AnalogInput::new(feedback_ids.0, sender.clone()),
-                Some(AnalogInput::new(feedback_ids.1, sender.clone())),
-            ),
-            output_pair: (
-                Output::new(output_ids.0, sender.clone()),
-                Output::new(output_ids.1, sender),
-            ),
-        }
-    }
-
-    pub fn from_io(output_pair: (Output, Output), feedback: AnalogInput) -> Self {
+impl <'a> RelayHBridge <'a> {
+    pub fn new(outputs: (&'a Output, &'a Output), feedback: &'a AnalogInput) -> Self {
         Self {
             fb_pair: (feedback, None),
-            output_pair,
-        }
-    }
-
-    pub fn from_io_with_dual_feedback(
-        output_pair: (Output, Output),
-        feedback_pair: (AnalogInput, AnalogInput),
-    ) -> Self {
-        Self {
-            fb_pair: (feedback_pair.0, Some(feedback_pair.1)),
-            output_pair,
+            output_pair: outputs,
         }
     }
 }
 
-impl LinearActuator for RelayHBridge {
+impl <'a> LinearActuator for RelayHBridge <'a> {
     async fn get_feedback(&self) -> Result<isize, Box<dyn Error>> {
         let mut position = self.fb_pair.0.get_state().await?;
         if let Some(fb) = &self.fb_pair.1 {

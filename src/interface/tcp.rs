@@ -5,8 +5,8 @@ use tokio::net::{TcpStream, ToSocketAddrs};
 use tokio::sync::mpsc;
 
 
-pub async fn client<T: ToSocketAddrs + ?Sized>(
-    addr: &T,
+pub async fn client<T: ToSocketAddrs>(
+    addr: T,
     mut msg: mpsc::Receiver<Message>,
 ) -> Result<(), Box<dyn Error + Send + Sync>> {
     let mut stream = TcpStream::connect(addr).await?;

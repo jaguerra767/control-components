@@ -1,7 +1,14 @@
+use std::error::Error;
+use std::future::Future;
+use std::net::SocketAddr;
+use tokio::io::AsyncReadExt;
+use tokio::join;
+use tokio::net::{TcpListener, ToSocketAddrs};
 use tokio::sync::{oneshot};
-use tokio::sync::mpsc::Sender;
-use crate::components::clear_core_io::{Input, Output};
+use tokio::sync::mpsc::{channel, Sender};
+use crate::components::clear_core_io::{AnalogInput, Input, Output};
 use crate::components::clear_core_motor::ClearCoreMotor;
+use crate::interface::tcp::client;
 
 
 pub const STX: u8 = 2;
@@ -9,7 +16,8 @@ pub const CR: u8 = 13;
 pub const RESULT_IDX: u8 = 3;
 
 
-const NO_INPUTS: usize = 7;
+const NO_DIGITAL_INPUTS: usize = 3;
+const NO_ANALOG_INPUTS: usize = 4;
 const NO_OUTPUTS: usize = 6;
 
 pub struct Message {
@@ -20,6 +28,7 @@ pub struct Message {
 pub type Motors = Vec<ClearCoreMotor>;
 pub type Inputs = Vec<Input>;
 
+pub type AnalogInputs = Vec<AnalogInput>;
 pub type Outputs = Vec<Output>;
 
 pub struct MotorBuilder {
@@ -33,8 +42,9 @@ pub struct MotorBuilder {
 
 pub struct Controller {
     motors: Motors,
-    inputs: Inputs,
-    outputs: Outputs
+    digital_inputs: Inputs,
+    analog_inputs: AnalogInputs,
+    outputs: Outputs,
 }
 
 impl Controller {
@@ -47,67 +57,117 @@ impl Controller {
         let motors = motors.into_iter()
             .map(|motor|{ ClearCoreMotor::new(motor.id, motor.scale, tx.clone()) })
             .collect();
-        let inputs = (0..NO_INPUTS).into_iter()
-           .map(|index|{ Input::new(index as u8, tx.clone())})
+        let digital_inputs = (0..NO_DIGITAL_INPUTS).into_iter()
+            .map(|index|{ Input::new(index as u8, tx.clone())})
+            .collect();
+        let analog_inputs = (0..NO_ANALOG_INPUTS).into_iter()
+            .map(|index|{ AnalogInput::new(index as u8, tx.clone())})
             .collect();
         let outputs = (0..NO_OUTPUTS).into_iter()
             .map(|index|{ Output::new(index as u8, tx.clone())})
             .collect();
 
-        Controller { motors, inputs, outputs }
+        Controller { motors, digital_inputs, analog_inputs, outputs}
     }
+    
+    pub fn with_client<T: ToSocketAddrs>(
+        addr: T, 
+        motors: &[MotorBuilder]
+    ) -> (Self, impl  Future<Output = Result<(), Box<dyn Error + Send + Sync>>>)
+    {
+        let (tx, rx) = channel(100);
+        (Controller::new(tx, motors), client(addr, rx))    
+    }
+    
     pub fn get_motor(&self, id: usize) -> Option<&ClearCoreMotor> {
         self.motors.get(id)
     }
     
-    pub fn get_inputs(&self, id: usize) -> Option<&Input> {
-        self.inputs.get(id)
+    pub fn get_digital_inputs(&self, id: usize) -> Option<&Input> {
+        self.digital_inputs.get(id)
+    }
+
+    pub fn get_analog_input(&self, id: usize) -> Option<&AnalogInput> {
+        self.analog_inputs.get(id)
     }
     
     pub fn get_output(&self, id: usize) -> Option<&Output> {
         self.outputs.get(id)
     }
-        
 }
 
 
-// #[tokio::test]
-// async fn test_controller() {
-//     let (tx, mut rx) = mpsc::channel::<Message>(100);
-//     let tx2 = tx.clone();
-//     let tx3 = tx.clone();
-// 
-//     let mock_client = tokio::spawn(async move {
-//         while let Some(msg) = rx.recv().await {
-//             if msg.response.send(msg.buffer).is_err() {
-//                 eprintln!("Unable to send Response");
-//             }
-//         }
-//     });
-// 
-//     let controller_task_1 = tokio::spawn(async move {
-//         let controller = Controller::new(tx);
-//         let reply = controller.write("Test_1".as_bytes()).await.expect("Failed");
-//         println!("{:?}", reply);
-//         assert_eq!(reply.as_slice(), "Test_1".as_bytes());
-//     });
-// 
-//     let controller_task_2 = tokio::spawn(async move {
-//         let controller = Controller::new(tx2);
-//         let reply = controller.write("Test_2".as_bytes()).await.expect("Failed");
-//         println!("{:?}", reply);
-//         assert_eq!(reply.as_slice(), "Test_2".as_bytes());
-//     });
-// 
-//     let controller_task_3 = tokio::spawn(async move {
-//         let controller = Controller::new(tx3);
-//         let reply = controller.write("Test_3".as_bytes()).await.expect("Failed");
-//         println!("{:?}", reply);
-//         assert_eq!(reply.as_slice(), "Test_3".as_bytes());
-//     });
-// 
-//     mock_client.await.unwrap();
-//     controller_task_1.await.unwrap();
-//     controller_task_2.await.unwrap();
-//     controller_task_3.await.unwrap();
-// }
+#[tokio::test]
+async fn test_controller() {
+    let (tx, mut rx) = channel::<Message>(100);
+    
+    let motors = [
+        MotorBuilder{id:0, scale:800},
+        MotorBuilder{id:1, scale:800},
+        MotorBuilder{id:2, scale:800},
+        MotorBuilder{id:3, scale:800}
+    ];
+    
+    let mock_client = tokio::spawn(async move {
+        if let Some(msg) = rx.recv().await {
+            assert_eq!(*msg.buffer.get(0).unwrap(), 0x02);
+            assert_eq!(*msg.buffer.get(1).unwrap(), b'M');
+            if msg.response.send(msg.buffer).is_err() {
+                eprintln!("Unable to send Response");
+            }
+        }
+    });
+
+    let controller_task_1 = tokio::spawn(async move {
+        let controller = Controller::new(tx, motors.as_slice());
+        
+        let motor0 = controller.get_motor(0).unwrap();
+        motor0.enable().await.expect("Invalid Message");
+    });
+
+
+    mock_client.await.unwrap();
+    controller_task_1.await.unwrap();
+}
+
+
+#[tokio::test]
+async fn test_controller_with_client() {
+    //We need this MotorBuilder struct to inject the motor scale into the controller, the id part is
+    //Kind of unnecessary, but it might be valuable for having named ids in ryo-os
+    let motors = [
+        MotorBuilder{id:0, scale:800},
+        MotorBuilder{id:1, scale:800},
+        MotorBuilder{id:2, scale:800},
+        MotorBuilder{id:3, scale:800}
+    ];
+    
+    let mut reply_buffer = [0;128];
+    
+    let server_task = tokio::spawn(async move {
+        let addr = SocketAddr::from(([127, 0, 0, 1], 8888));
+        let listener = TcpListener::bind(addr).await.unwrap();
+        let (mut stream, _) = listener.accept().await.unwrap();
+        stream.read(reply_buffer.as_mut_slice()).await.unwrap();
+        assert_eq!(reply_buffer[0], 0x02);
+        assert_eq!(reply_buffer[1], b'M');
+        println!("{:?}", reply_buffer);
+    });
+    
+    //controller returns its rx that we can use it in its partner client actor, I'm debating whether
+    //Instead of returning a rx we can return a future that can be plugged into spawn directly but
+    let (controller, client) = Controller::with_client("127.0.0.1:8888",motors.as_slice());
+  
+    //Tasks that do stuff use a reference to controller
+    let controller_task_1 = tokio::spawn(async move {
+        if let Some(motor) = &controller.get_motor(0) {
+            if let Err(e) = motor.enable().await {
+                eprintln!("{e}");
+            }
+        }
+    });
+    
+    //We can start a task with the returned client ensuring that we always use the right client
+    let mock_client = tokio::spawn(client);
+    let _ = join!(mock_client, controller_task_1, server_task);
+}

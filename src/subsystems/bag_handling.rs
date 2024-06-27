@@ -7,17 +7,13 @@ use tokio::time::sleep;
 
 pub struct BagGripper<'a> {
     motor: &'a ClearCoreMotor,
-    actuator: &'a SimpleLinearActuator,
+    actuator: SimpleLinearActuator<'a>,
     positions: Vec<f64>, //Revs, we have to make a units crate for this
 }
 
 impl <'a> BagGripper <'a>{
-    pub fn new(motor: &'a ClearCoreMotor, actuator: &'a SimpleLinearActuator, positions: Vec<f64>) -> Self {
-        Self {
-            motor,
-            actuator,
-            positions,
-        }
+    pub fn new(motor: &'a ClearCoreMotor, actuator: SimpleLinearActuator<'a>, positions: Vec<f64>) -> Self {
+        Self { motor, actuator, positions, }
     }
 
     pub async fn open(&self) -> Result<(), Box<dyn Error>> {
