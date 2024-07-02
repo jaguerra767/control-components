@@ -160,6 +160,7 @@ pub async fn client(interface: &str, mut rx: Receiver<Message>) {
 #[tokio::test]
 async fn test_ek1100() {
     use env_logger::Env;
+    use log::error;
     use tokio::join;
 
     env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();

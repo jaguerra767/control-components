@@ -51,7 +51,8 @@ impl<'a> Sealer<'a> {
 
 #[tokio::test]
 async fn test_sealer() {
-    use crate::controllers::clear_core;
+    use env_logger::Env;
+    use crate::controllers::clear_core::{MotorBuilder, Controller};
     use crate::controllers::ek1100_io;
     env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
     let interface = "enp1s0f0";
@@ -60,7 +61,7 @@ async fn test_sealer() {
 
     tokio::time::sleep(Duration::from_secs_f64(3.0)).await;
     let motors = [MotorBuilder { id: 0, scale: 800 }];
-    let (cc1, cc_client) = clear_core::Controller::with_client("192.168.1.11:8888", &motors);
+    let (cc1, cc_client) = Controller::with_client("192.168.1.11:8888", &motors);
 
     let cc_client_handler = tokio::spawn(cc_client);
 
