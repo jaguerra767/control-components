@@ -300,7 +300,7 @@ impl SendRecv for ClearCoreMotor {
 //     });
 //     let (_, _) = tokio::join!(task, cc1_handler);
 // }
-// 
+//
 // #[tokio::test]
 // async fn test_gantry_pos() {
 //     let (tx, rx) = tokio::sync::mpsc::channel(10);

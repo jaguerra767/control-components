@@ -1,24 +1,27 @@
-use std::time::Duration;
 use crate::components::clear_core_io::{Output, OutputState};
-use crate::controllers::ek1100_io::{IOCard};
-
-
-
+use crate::controllers::ek1100_io::IOCard;
+use std::time::Duration;
 
 pub struct Sealer<'a> {
     heater: &'a Output,
     actuator_io: &'a mut IOCard,
     extend_id: u8,
-    retract_id: u8
+    retract_id: u8,
 }
 
-impl <'a> Sealer <'a> {
+impl<'a> Sealer<'a> {
     pub fn new(
         heater: &'a Output,
         actuator_io: &'a mut IOCard,
         extend_id: u8,
-        retract_id: u8) -> Self {
-        Self {heater, actuator_io, extend_id, retract_id}
+        retract_id: u8,
+    ) -> Self {
+        Self {
+            heater,
+            actuator_io,
+            extend_id,
+            retract_id,
+        }
     }
 
     async fn extend_heater(&mut self) {
@@ -46,7 +49,6 @@ impl <'a> Sealer <'a> {
     }
 }
 
-
 #[tokio::test]
 async fn test_sealer() {
     use crate::controllers::clear_core;
@@ -57,7 +59,7 @@ async fn test_sealer() {
     let eth_client_handler = tokio::spawn(eth_client);
 
     tokio::time::sleep(Duration::from_secs_f64(3.0)).await;
-    let motors = [MotorBuilder{id:0, scale:800}];
+    let motors = [MotorBuilder { id: 0, scale: 800 }];
     let (cc1, cc_client) = clear_core::Controller::with_client("192.168.1.11:8888", &motors);
 
     let cc_client_handler = tokio::spawn(cc_client);
@@ -77,5 +79,4 @@ async fn test_sealer() {
     drop(ethercat_io);
 
     let _ = tokio::join!(eth_client_handler, cc_client_handler);
-
 }

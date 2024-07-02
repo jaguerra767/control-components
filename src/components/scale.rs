@@ -5,8 +5,6 @@ use std::io;
 use std::thread::sleep;
 use tokio::time::{Duration, Instant};
 
-
-
 pub type DiagnoseResult = Result<(Scale, Vec<Duration>, Vec<f64>), Box<dyn Error>>;
 pub struct Scale {
     cells: [LoadCell; 4],
@@ -41,11 +39,12 @@ impl Scale {
     fn get_readings(scale: Self) -> Result<(Self, Vec<f64>), Box<dyn Error>> {
         // Gets each load cell reading from Phidget
         // and returns them in a matrix.
-
-        let mut readings = vec![0.; 4];
-        for cell in 0..scale.cells.len() {
-            readings[cell] = scale.cells[cell].get_reading()?;
-        }
+        let readings: Vec<f64> = scale
+            .cells
+            .as_slice()
+            .iter()
+            .map(|cell| cell.get_reading().unwrap())
+            .collect();
         Ok((scale, readings))
     }
 
@@ -97,13 +96,17 @@ impl Scale {
                 break;
             }
             
-            for cell in 0..scale.cells.len() {
-                readings[cell].push(
-                    scale.cells[cell]
-                        .get_reading()
-                        .expect("Failed to get cell reading"),
-                );
+            for (idx, cell) in scale.cells.iter().enumerate().take(scale.cells.len()) {
+                readings[idx].push(cell.get_reading().expect("Failed to get reading"))
             }
+            
+            // for cell in 0..scale.cells.len() {
+            //     readings[cell].push(
+            //         scale.cells[cell]
+            //             .get_reading()
+            //             .expect("Failed to get cell reading"),
+            //     );
+            // }
             sleep(delay);
         }
         for cell in 0..scale.cells.len() {
@@ -117,7 +120,6 @@ impl Scale {
         scale
     }
 
-    
     pub fn diagnose(mut scale: Self, duration: Duration, sample_rate: usize) -> DiagnoseResult {
         let mut times = Vec::new();
         let mut weights = Vec::new();

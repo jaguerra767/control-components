@@ -40,7 +40,7 @@ pub async fn gantry(
 //     let (gtx, grx) = tokio::sync::mpsc::channel(10);
 //     let gantry_handler = tokio::spawn(gantry(ClearCoreMotor::new(0, 800, tx), grx));
 //     let cc1_handler = tokio::spawn(client("192.168.1.11:8888", rx));
-// 
+//
 //     let goto = tokio::spawn(async move {
 //         for pos in positions {
 //             gtx.send(GantryCommand::GoTo(pos)).await.unwrap();
@@ -51,10 +51,10 @@ pub async fn gantry(
 //             println!("in position: {rep}");
 //         }
 //     });
-// 
+//
 //     let (_, _, _) = tokio::join!(goto, gantry_handler, cc1_handler);
 // }
-// 
+//
 // #[tokio::test]
 // async fn test_gantry_home() {
 //     let pos = -0.25;
@@ -62,7 +62,7 @@ pub async fn gantry(
 //     let (gtx, grx) = tokio::sync::mpsc::channel(10);
 //     let gantry_handler = tokio::spawn(gantry(ClearCoreMotor::new(0, 800, tx), grx));
 //     let cc1_handler = tokio::spawn(client("192.168.1.11:8888", rx));
-// 
+//
 //     let goto = tokio::spawn(async move {
 //         gtx.send(GantryCommand::GoTo(pos)).await.unwrap();
 //         let (rep_tx, rep_rx) = oneshot::channel();
@@ -71,6 +71,6 @@ pub async fn gantry(
 //         let rep = rep_rx.await.unwrap();
 //         println!("in position: {rep}");
 //     });
-// 
+//
 //     let (_, _, _) = tokio::join!(goto, gantry_handler, cc1_handler);
 // }

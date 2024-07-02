@@ -1,4 +1,4 @@
-use crate::components::clear_core_io::{Input, HBridgeState};
+use crate::components::clear_core_io::{HBridgeState, Input};
 use crate::components::clear_core_motor::{ClearCoreMotor, Status};
 use crate::subsystems::linear_actuator::{LinearActuator, SimpleLinearActuator};
 use std::error::Error;
@@ -11,9 +11,17 @@ pub struct BagGripper<'a> {
     positions: Vec<f64>, //Revs, we have to make a units crate for this
 }
 
-impl <'a> BagGripper <'a>{
-    pub fn new(motor: &'a ClearCoreMotor, actuator: SimpleLinearActuator<'a>, positions: Vec<f64>) -> Self {
-        Self { motor, actuator, positions, }
+impl<'a> BagGripper<'a> {
+    pub fn new(
+        motor: &'a ClearCoreMotor,
+        actuator: SimpleLinearActuator<'a>,
+        positions: Vec<f64>,
+    ) -> Self {
+        Self {
+            motor,
+            actuator,
+            positions,
+        }
     }
 
     pub async fn open(&self) -> Result<(), Box<dyn Error>> {
@@ -44,7 +52,7 @@ pub struct BagDispenser<'a> {
     photo_eye: &'a Input,
 }
 
-impl <'a> BagDispenser <'a> {
+impl<'a> BagDispenser<'a> {
     pub fn new(motor: &'a ClearCoreMotor, photo_eye: &'a Input) -> Self {
         Self { motor, photo_eye }
     }
@@ -84,7 +92,7 @@ impl <'a> BagDispenser <'a> {
 // async fn test_bag_dispense() {
 //     let (tx, rx) = tokio::sync::mpsc::channel(10);
 //     let cc1_handler = tokio::spawn(client("192.168.1.11:8888", rx));
-// 
+//
 //     let bag_dispense_handler = tokio::spawn(async move {
 //         let motor = ClearCoreMotor::new(1, 200, tx.clone());
 //         motor.enable().await.unwrap();
@@ -95,18 +103,18 @@ impl <'a> BagDispenser <'a> {
 //         dispenser.dispense().await.unwrap();
 //         dispenser.pull_back().await.unwrap();
 //     });
-// 
+//
 //     let (_, _) = tokio::join!(bag_dispense_handler, cc1_handler);
 // }
-// 
+//
 // #[tokio::test]
 // async fn test_gripper_motor() {
 //     let (tx, rx) = tokio::sync::mpsc::channel(10);
 //     let (tx2, rx2) = tokio::sync::mpsc::channel(10);
-// 
+//
 //     let cc1_handler = tokio::spawn(client("192.168.1.11:8888", rx));
 //     let cc2_handler = tokio::spawn(client("192.168.1.12:8888", rx2));
-// 
+//
 //     let motor_handler = tokio::spawn(async move {
 //         let motor = ClearCoreMotor::new(2, 200, tx);
 //         let gripper = BagGripper::new(
@@ -118,15 +126,15 @@ impl <'a> BagDispenser <'a> {
 //     });
 //     let (_, _, _) = tokio::join!(motor_handler, cc1_handler, cc2_handler);
 // }
-// 
+//
 // #[tokio::test]
 // async fn test_gripper_actuator() {
 //     let (tx, rx) = tokio::sync::mpsc::channel(10);
 //     let (tx2, rx2) = tokio::sync::mpsc::channel(10);
-// 
+//
 //     let cc1_handler = tokio::spawn(client("192.168.1.11:8888", rx));
 //     let cc2_handler = tokio::spawn(client("192.168.1.12:8888", rx2));
-// 
+//
 //     let actuator_handler = tokio::spawn(async move {
 //         let motor = ClearCoreMotor::new(2, 200, tx);
 //         let gripper = BagGripper::new(
@@ -140,12 +148,12 @@ impl <'a> BagDispenser <'a> {
 //     });
 //     let (_, _, _) = tokio::join!(actuator_handler, cc1_handler, cc2_handler);
 // }
-// 
+//
 // #[tokio::test]
 // async fn test_bag_loading() {
 //     let (tx, rx) = tokio::sync::mpsc::channel(10);
 //     let (tx2, rx2) = tokio::sync::mpsc::channel(10);
-// 
+//
 //     let cc1_handler = tokio::spawn(client("192.168.1.11:8888", rx));
 //     let cc2_handler = tokio::spawn(client("192.168.1.12:8888", rx2));
 //     let task = tokio::spawn(async move {
@@ -163,7 +171,7 @@ impl <'a> BagDispenser <'a> {
 //         let blower = Output::new(5, tx2);
 //         load_bag(dispenser, gripper, blower, /* tokio::sync::mpsc::Sender<GantryCommand> */).await;
 //         let gantry = ClearCoreMotor::new(0, 800, tx);
-// 
+//
 //         tokio::time::sleep(Duration::from_millis(100)).await;
 //         gantry.relative_move(25.0).await.unwrap();
 //     });

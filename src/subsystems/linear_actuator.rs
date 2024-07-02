@@ -20,12 +20,12 @@ pub trait LinearActuator {
     ) -> impl Future<Output = Result<(), Box<dyn Error>>> + Send;
 }
 
-pub struct SimpleLinearActuator <'a> {
+pub struct SimpleLinearActuator<'a> {
     output: &'a HBridge,
     feedback: &'a AnalogInput,
 }
 
-impl <'a> LinearActuator for SimpleLinearActuator <'a> {
+impl<'a> LinearActuator for SimpleLinearActuator<'a> {
     async fn get_feedback(&self) -> Result<isize, Box<dyn Error>> {
         self.feedback.get_state().await
     }
@@ -35,12 +35,9 @@ impl <'a> LinearActuator for SimpleLinearActuator <'a> {
     }
 }
 
-impl <'a> SimpleLinearActuator <'a> {
+impl<'a> SimpleLinearActuator<'a> {
     pub fn new(output: &'a HBridge, feedback: &'a AnalogInput) -> Self {
-        Self {
-            output,
-            feedback
-        }
+        Self { output, feedback }
     }
 }
 
@@ -50,12 +47,12 @@ pub enum ActuatorCh {
     Chb,
 }
 
-pub struct RelayHBridge <'a> {
+pub struct RelayHBridge<'a> {
     fb_pair: (&'a AnalogInput, Option<&'a AnalogInput>),
     output_pair: (&'a Output, &'a Output),
 }
 
-impl <'a> RelayHBridge <'a> {
+impl<'a> RelayHBridge<'a> {
     pub fn new(outputs: (&'a Output, &'a Output), feedback: &'a AnalogInput) -> Self {
         Self {
             fb_pair: (feedback, None),
@@ -64,7 +61,7 @@ impl <'a> RelayHBridge <'a> {
     }
 }
 
-impl <'a> LinearActuator for RelayHBridge <'a> {
+impl<'a> LinearActuator for RelayHBridge<'a> {
     async fn get_feedback(&self) -> Result<isize, Box<dyn Error>> {
         let mut position = self.fb_pair.0.get_state().await?;
         if let Some(fb) = &self.fb_pair.1 {

@@ -1,5 +1,5 @@
 use crate::components::clear_core_io::HBridgeState;
-use crate::subsystems::linear_actuator::{LinearActuator};
+use crate::subsystems::linear_actuator::LinearActuator;
 use std::error::Error;
 use std::time::Duration;
 use tokio::time::Instant;
@@ -93,7 +93,7 @@ impl<T: LinearActuator> Hatch<T> {
 //     });
 //     let (_, _, _) = tokio::join!(task, cc1_handler, cc2_handler);
 // }
-// 
+//
 // #[tokio::test]
 // async fn close_all() {
 //     let (tx, rx) = tokio::sync::mpsc::channel(10);
@@ -124,7 +124,7 @@ impl<T: LinearActuator> Hatch<T> {
 //     });
 //     let (_, _, _) = tokio::join!(task, cc1_handler, cc2_handler);
 // }
-// 
+//
 // #[tokio::test]
 // async fn get_all_positions() {
 //     let (tx, rx) = tokio::sync::mpsc::channel(10);

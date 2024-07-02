@@ -4,7 +4,6 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpStream, ToSocketAddrs};
 use tokio::sync::mpsc;
 
-
 pub async fn client<T: ToSocketAddrs>(
     addr: T,
     mut msg: mpsc::Receiver<Message>,

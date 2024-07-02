@@ -1,7 +1,7 @@
 use crate::components::clear_core_motor::ClearCoreMotor;
 use crate::components::scale::Scale;
-use std::error::Error;
 use serde::Deserialize;
+use std::error::Error;
 use tokio::sync::mpsc::Receiver;
 use tokio::sync::oneshot;
 use tokio::time::{Duration, Instant};
@@ -56,11 +56,11 @@ impl DispensingParameters {
     }
 }
 
-pub struct Node <'a> {
+pub struct Node<'a> {
     motor: &'a ClearCoreMotor,
 }
 
-impl <'a> Node<'a> {
+impl<'a> Node<'a> {
     pub fn new(motor: &'a ClearCoreMotor) -> Self {
         Self { motor }
     }
@@ -246,7 +246,15 @@ impl <'a> Node<'a> {
         mut rx: Receiver<NodeCommand>,
     ) -> Result<(), Box<dyn Error + Send + Sync>> {
         let mut scale = self.connect_scale(Scale::new(phidget_id)).await;
-        scale = Scale::change_coefficients(scale, vec![-5897877.72181665, 5263019.161459, -4005678.071311, 4000763.38549006]);
+        scale = Scale::change_coefficients(
+            scale,
+            vec![
+                -5897877.72181665,
+                5263019.161459,
+                -4005678.071311,
+                4000763.38549006,
+            ],
+        );
         self.motor.enable().await.unwrap();
         while let Some(cmd) = rx.recv().await {
             match cmd {
@@ -290,7 +298,7 @@ pub enum NodeCommand {
 //         let node = Node::new(ClearCoreMotor::new(3, 800, tx));
 //         node.actor(716620, nrx).await.expect("TODO: panic message");
 //     });
-// 
+//
 //     let weigh = tokio::spawn( async move {
 //         let (rep_tx, rep_rx) = oneshot::channel();
 //         let msg = NodeCommand::ReadScaleMedian(rep_tx);
@@ -298,23 +306,6 @@ pub enum NodeCommand {
 //         let rep = rep_rx.await.unwrap();
 //         println!("Weight reading: {:.1}", rep-5383.);
 //     });
-// 
+//
 //     let (_, _, _) = tokio::join!(weigh, node_handler, cc1_handler);
 // }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
