@@ -1,0 +1,84 @@
+
+use std::time::Duration;
+use env_logger::Env;
+use crate::components::clear_core_io::{Output, OutputState};
+use crate::controllers::clear_core::MotorBuilder;
+use crate::controllers::ek1100_io::{IOCard};
+
+
+
+
+pub struct Sealer<'a> {
+    heater: &'a Output,
+    actuator_io: &'a mut IOCard,
+    extend_id: u8,
+    retract_id: u8
+}
+
+impl <'a> Sealer <'a> {
+    pub fn new(
+        heater: &'a Output,
+        actuator_io: &'a mut IOCard,
+        extend_id: u8,
+        retract_id: u8) -> Self {
+        Self {heater, actuator_io, extend_id, retract_id}
+    }
+
+    async fn extend_heater(&mut self) {
+        self.actuator_io.set_state(1, self.extend_id, true).await;
+        tokio::time::sleep(Duration::from_secs_f64(3.)).await;
+        self.actuator_io.set_state(1, self.extend_id, false).await;
+    }
+
+    async fn retract_heater(&mut self) {
+        self.actuator_io.set_state(1, self.retract_id, true).await;
+        tokio::time::sleep(Duration::from_secs_f64(3.)).await;
+        self.actuator_io.set_state(1, self.retract_id, false).await;
+    }
+
+    async fn heat(&self, dwell_time: Duration) {
+        self.heater.set_state(OutputState::On).await.unwrap();
+        tokio::time::sleep(dwell_time).await;
+        self.heater.set_state(OutputState::Off).await.unwrap();
+    }
+
+    pub async fn seal(&mut self) {
+        self.extend_heater().await;
+        self.heat(Duration::from_secs_f64(3.0)).await;
+        self.retract_heater().await;
+    }
+}
+
+
+#[tokio::test]
+async fn test_sealer() {
+    use crate::controllers::clear_core;
+    use crate::controllers::ek1100_io;
+    env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
+    let interface = "enp1s0f0";
+    let (mut ethercat_io, eth_client) = ek1100_io::Controller::with_client(interface, 1);
+    let eth_client_handler = tokio::spawn(eth_client);
+
+    tokio::time::sleep(Duration::from_secs_f64(3.0)).await;
+    let motors = [MotorBuilder{id:0, scale:800}];
+    let (cc1, cc_client) = clear_core::Controller::with_client("192.168.1.11:8888", &motors);
+
+    let cc_client_handler = tokio::spawn(cc_client);
+
+    let heater = cc1.get_output(1).unwrap();
+
+    let actuator = ethercat_io.get_io(0).unwrap();
+
+    let extend = 3;
+    let retract = 2;
+
+    let mut sealer = Sealer::new(heater, actuator, extend, retract);
+    tokio::time::sleep(Duration::from_secs_f64(3.0)).await;
+    sealer.seal().await;
+    
+    drop(cc1);
+    drop(ethercat_io);
+
+    let _ = tokio::join!(eth_client_handler, cc_client_handler);
+
+}

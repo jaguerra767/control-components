@@ -1,10 +1,11 @@
 use std::error::Error;
 use std::future::Future;
 use std::net::SocketAddr;
+use std::sync::Arc;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::join;
 use tokio::net::{TcpListener, ToSocketAddrs};
-use tokio::sync::{oneshot};
+use tokio::sync::{Mutex, oneshot};
 use tokio::sync::mpsc::{channel, Sender};
 use crate::components::clear_core_io::{AnalogInput, Input, Output};
 use crate::components::clear_core_motor::ClearCoreMotor;
@@ -158,17 +159,27 @@ async fn test_controller_with_client() {
     //controller returns its rx that we can use it in its partner client actor, I'm debating whether
     //Instead of returning a rx we can return a future that can be plugged into spawn directly but
     let (controller, client) = Controller::with_client("127.0.0.1:8888",motors.as_slice());
-  
+    
+    let cc1 = Arc::new(Mutex::from(controller));
+    let task_1_cc_1 = cc1.clone();
     //Tasks that do stuff use a reference to controller
     let controller_task_1 = tokio::spawn(async move {
-        if let Some(motor) = &controller.get_motor(0) {
+        if let Some(motor) = task_1_cc_1.lock().await.get_motor(0) {
             if let Err(e) = motor.enable().await {
                 eprintln!("{e}");
             }
         }
     });
     
+    let controller_task_2 = tokio::spawn(async move{ 
+        if let Some(input) = cc1.lock().await.get_digital_inputs(0) {
+            if let Ok(input) =  input.get_state().await {
+                println!("State gotten: {}", input);
+            }
+        }
+    });
+    
     //We can start a task with the returned client ensuring that we always use the right client
     let mock_client = tokio::spawn(client);
-    let _ = join!(mock_client, controller_task_1, server_task);
+    let _ = join!(mock_client, controller_task_1, controller_task_2, server_task);
 }
