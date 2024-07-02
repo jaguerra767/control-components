@@ -90,7 +90,7 @@ pub async fn client(interface: &str, mut rx: Receiver<Message>) {
     ));
     
     info!("Starting EtherCAT master");
-    tokio::spawn(tx_rx_task(&interface, pdu_tx, pdu_rx).expect("spawn TX/RX task"));
+    tokio::spawn(tx_rx_task(interface, pdu_tx, pdu_rx).expect("spawn TX/RX task"));
     
   
 

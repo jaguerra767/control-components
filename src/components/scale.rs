@@ -5,6 +5,9 @@ use std::io;
 use std::thread::sleep;
 use tokio::time::{Duration, Instant};
 
+
+
+pub type DiagnoseResult = Result<(Scale, Vec<Duration>, Vec<f64>), Box<dyn Error>>;
 pub struct Scale {
     cells: [LoadCell; 4],
     cell_coefficients: Vec<f64>,
@@ -77,7 +80,7 @@ impl Scale {
         Ok((scale, Scale::median(&mut weights)))
     }
 
-    fn median(weights: &mut Vec<f64>) -> f64 {
+    fn median(weights: &mut [f64]) -> f64 {
         weights.sort_by(|a, b| a.partial_cmp(b).unwrap());
         let middle = weights.len() / 2;
         weights[middle]
@@ -93,6 +96,7 @@ impl Scale {
             if curr_time - start_time > time {
                 break;
             }
+            
             for cell in 0..scale.cells.len() {
                 readings[cell].push(
                     scale.cells[cell]
@@ -113,11 +117,8 @@ impl Scale {
         scale
     }
 
-    pub fn diagnose(
-        mut scale: Self,
-        duration: Duration,
-        sample_rate: usize,
-    ) -> Result<(Self, Vec<Duration>, Vec<f64>), Box<dyn Error>> {
+    
+    pub fn diagnose(mut scale: Self, duration: Duration, sample_rate: usize) -> DiagnoseResult {
         let mut times = Vec::new();
         let mut weights = Vec::new();
         let data_interval = Duration::from_secs_f64(1. / sample_rate as f64);

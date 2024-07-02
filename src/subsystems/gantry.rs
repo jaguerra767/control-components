@@ -9,8 +9,8 @@ pub enum GantryCommand {
     GoTo(f64),
 }
 
-pub async fn gantry <'a>(
-    motor: &'a ClearCoreMotor,
+pub async fn gantry(
+    motor: &ClearCoreMotor,
     mut rx: Receiver<GantryCommand>,
 ) -> Result<(), Box<dyn Error + Send + Sync>> {
     motor.set_acceleration(40.).await.unwrap();

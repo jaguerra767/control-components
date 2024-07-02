@@ -55,16 +55,16 @@ impl Controller {
     //change now is in that file. Something we can do in the future is make a HashMap of controllers
     //with a name and associate a sender to that but that seems like overkill to me now.
     pub fn new(tx: Sender<Message>, motors: &[MotorBuilder]) -> Self {
-        let motors = motors.into_iter()
+        let motors = motors.iter()
             .map(|motor|{ ClearCoreMotor::new(motor.id, motor.scale, tx.clone()) })
             .collect();
-        let digital_inputs = (0..NO_DIGITAL_INPUTS).into_iter()
+        let digital_inputs = (0..NO_DIGITAL_INPUTS)
             .map(|index|{ Input::new(index as u8, tx.clone())})
             .collect();
-        let analog_inputs = (0..NO_ANALOG_INPUTS).into_iter()
+        let analog_inputs = (0..NO_ANALOG_INPUTS)
             .map(|index|{ AnalogInput::new(index as u8, tx.clone())})
             .collect();
-        let outputs = (0..NO_OUTPUTS).into_iter()
+        let outputs = (0..NO_OUTPUTS)
             .map(|index|{ Output::new(index as u8, tx.clone())})
             .collect();
 

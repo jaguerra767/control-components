@@ -1,8 +1,5 @@
-
 use std::time::Duration;
-use env_logger::Env;
 use crate::components::clear_core_io::{Output, OutputState};
-use crate::controllers::clear_core::MotorBuilder;
 use crate::controllers::ek1100_io::{IOCard};
 
 
@@ -75,7 +72,7 @@ async fn test_sealer() {
     let mut sealer = Sealer::new(heater, actuator, extend, retract);
     tokio::time::sleep(Duration::from_secs_f64(3.0)).await;
     sealer.seal().await;
-    
+
     drop(cc1);
     drop(ethercat_io);
 
