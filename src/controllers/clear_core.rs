@@ -152,8 +152,6 @@ pub async fn get_all_motor_states(controller: Controller) -> Vec<Status> {
     statuses
 }
 
-pub async fn get_all_input_states(controller: Controller) -> Vec<>
-
 
 #[tokio::test]
 async fn test_controller() {
