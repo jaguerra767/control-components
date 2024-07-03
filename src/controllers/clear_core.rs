@@ -40,7 +40,7 @@ pub struct MotorBuilder {
 //The way controller is meant to be used now is to feed it the "recipe" for how to make a motor
 //(id and scale) and a single tx that the constructor then copies so that we don't have to copy it
 //ourselves and worry about it being dropped correctly.
-
+#[derive(Clone)]
 pub struct Controller {
     motors: Motors,
     digital_inputs: Inputs,
