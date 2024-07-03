@@ -37,9 +37,9 @@ impl<'a> Sealer<'a> {
     }
 
     async fn heat(&self, dwell_time: Duration) {
-        self.heater.set_state(OutputState::On).await.unwrap();
+        self.heater.set_state(OutputState::On).await;
         tokio::time::sleep(dwell_time).await;
-        self.heater.set_state(OutputState::Off).await.unwrap();
+        self.heater.set_state(OutputState::Off).await;
     }
 
     pub async fn seal(&mut self) {

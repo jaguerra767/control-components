@@ -1,6 +1,5 @@
 use crate::components::clear_core_io::HBridgeState;
 use crate::subsystems::linear_actuator::LinearActuator;
-use std::error::Error;
 use std::time::Duration;
 use tokio::time::Instant;
 
@@ -14,21 +13,20 @@ impl<T: LinearActuator> Hatch<T> {
         Self { actuator, timeout }
     }
 
-    pub async fn get_position(&self) -> Result<isize, Box<dyn Error>> {
+    pub async fn get_position(&self) -> isize{
         self.actuator.get_feedback().await
     }
 
-    pub async fn timed_open(&self, time: Duration) -> Result<(), Box<dyn Error>> {
-        self.actuator.actuate(HBridgeState::Pos).await?;
+    pub async fn timed_open(&self, time: Duration) {
+        self.actuator.actuate(HBridgeState::Pos).await;
         tokio::time::sleep(time).await;
-        self.actuator.actuate(HBridgeState::Off).await?;
-        Ok(())
+        self.actuator.actuate(HBridgeState::Off).await;
     }
 
-    pub async fn open(&self, set_point: isize) -> Result<(), Box<dyn Error>> {
-        self.actuator.actuate(HBridgeState::Pos).await?;
+    pub async fn open(&self, set_point: isize) {
+        self.actuator.actuate(HBridgeState::Pos).await;
         let star_time = Instant::now();
-        while self.actuator.get_feedback().await? >= set_point {
+        while self.actuator.get_feedback().await >= set_point {
             let curr_time = Instant::now();
             if (curr_time - star_time) > self.timeout {
                 //TODO: Add some proper error handling
@@ -36,21 +34,20 @@ impl<T: LinearActuator> Hatch<T> {
                 break;
             }
         }
-        self.actuator.actuate(HBridgeState::Off).await?;
-        Ok(())
+        self.actuator.actuate(HBridgeState::Off).await;
+
     }
 
-    pub async fn timed_close(&self, time: Duration) -> Result<(), Box<dyn Error>> {
-        self.actuator.actuate(HBridgeState::Neg).await?;
+    pub async fn timed_close(&self, time: Duration) {
+        self.actuator.actuate(HBridgeState::Neg).await;
         tokio::time::sleep(time).await;
-        self.actuator.actuate(HBridgeState::Off).await?;
-        Ok(())
+        self.actuator.actuate(HBridgeState::Off).await;
     }
 
-    pub async fn close(&self, set_point: isize) -> Result<(), Box<dyn Error>> {
-        self.actuator.actuate(HBridgeState::Neg).await?;
+    pub async fn close(&self, set_point: isize) {
+        self.actuator.actuate(HBridgeState::Neg).await;
         let star_time = Instant::now();
-        while self.actuator.get_feedback().await? <= set_point {
+        while self.actuator.get_feedback().await <= set_point {
             let curr_time = Instant::now();
             if (curr_time - star_time) > self.timeout {
                 //TODO: Add some proper error handling
@@ -58,8 +55,7 @@ impl<T: LinearActuator> Hatch<T> {
                 break;
             }
         }
-        self.actuator.actuate(HBridgeState::Off).await?;
-        Ok(())
+        self.actuator.actuate(HBridgeState::Off).await;
     }
 }
 

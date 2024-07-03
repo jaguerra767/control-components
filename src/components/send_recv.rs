@@ -1,5 +1,4 @@
 use crate::controllers::clear_core::Message;
-use std::error::Error;
 use std::future::Future;
 use tokio::sync::{mpsc, oneshot};
 

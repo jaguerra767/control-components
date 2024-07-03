@@ -103,8 +103,8 @@ impl<'a> Node<'a> {
         // Prime conveyor
         self.motor
             .set_velocity(2. * parameters.motor_speed)
-            .await
-            .unwrap();
+            .await;
+
         self.motor.relative_move(-10000.).await.unwrap();
 
         // Set LP filter values
@@ -134,15 +134,14 @@ impl<'a> Node<'a> {
 
         self.motor
             .set_velocity(parameters.motor_speed)
-            .await
-            .expect("Failed to change velocity");
+            .await;
         self.motor
             .relative_move(10000.)
             .await
             .expect("Failed to send move command");
         let (scale, dispensed) = loop {
             if curr_weight < target_weight - parameters.check_offset {
-                self.motor.abrupt_stop().await.expect("Failed to stop");
+                self.motor.abrupt_stop().await;
                 (scale, final_weight) = self
                     .read_scale_median(scale, Duration::from_secs(2), 50)
                     .await;
@@ -153,7 +152,7 @@ impl<'a> Node<'a> {
             let curr_time = Instant::now();
             if curr_time - init_time > timeout {
                 // TODO: maybe violently run in reverse for a couple seconds and let it keep running?
-                self.motor.abrupt_stop().await.expect("Failed to stop");
+                self.motor.abrupt_stop().await;
                 println!("WARNING: Dispense timed out!");
                 break (scale, init_weight - curr_weight);
             }
@@ -170,8 +169,7 @@ impl<'a> Node<'a> {
                 if new_motor_speed >= 0.1 {
                     self.motor
                         .set_velocity(new_motor_speed)
-                        .await
-                        .expect("Failed to change speed");
+                        .await;
                 }
                 self.motor
                     .relative_move(10000.0)
@@ -207,8 +205,8 @@ impl<'a> Node<'a> {
         let mut weights = Vec::new();
         self.motor
             .set_velocity(parameters.motor_speed)
-            .await
-            .expect("TODO: panic message");
+            .await;
+
         self.motor
             .relative_move(10000.0)
             .await
@@ -216,7 +214,7 @@ impl<'a> Node<'a> {
         loop {
             let curr_time = Instant::now();
             if curr_time - init_time > parameters.timeout.unwrap() {
-                self.motor.abrupt_stop().await.expect("Failed to stop");
+                self.motor.abrupt_stop().await;
                 break;
             }
             (scale, reading) = self.read_scale(scale).await;

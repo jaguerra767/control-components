@@ -1,6 +1,5 @@
 use crate::components::clear_core_io::{AnalogInput, HBridge, HBridgeState, Output, OutputState};
 pub use crate::controllers::clear_core::Message;
-use std::error::Error;
 use std::future::Future;
 
 //TODO: Move this to a hatches module
@@ -13,11 +12,8 @@ const ACTUONIX_LA_MIN_STROKE: isize = 400;
 #[allow(unused)]
 
 pub trait LinearActuator {
-    fn get_feedback(&self) -> impl Future<Output = Result<isize, Box<dyn Error>>> + Send;
-    fn actuate(
-        &self,
-        power: HBridgeState,
-    ) -> impl Future<Output = Result<(), Box<dyn Error>>> + Send;
+    fn get_feedback(&self) -> impl Future<Output = isize>;
+    fn actuate(&self, power: HBridgeState) -> impl Future<Output = ()>;
 }
 
 pub struct SimpleLinearActuator<'a> {
@@ -26,11 +22,11 @@ pub struct SimpleLinearActuator<'a> {
 }
 
 impl<'a> LinearActuator for SimpleLinearActuator<'a> {
-    async fn get_feedback(&self) -> Result<isize, Box<dyn Error>> {
+    async fn get_feedback(&self) -> isize {
         self.feedback.get_state().await
     }
 
-    async fn actuate(&self, state: HBridgeState) -> Result<(), Box<dyn Error>> {
+    async fn actuate(&self, state: HBridgeState) {
         self.output.set_state(state).await
     }
 }
@@ -62,29 +58,28 @@ impl<'a> RelayHBridge<'a> {
 }
 
 impl<'a> LinearActuator for RelayHBridge<'a> {
-    async fn get_feedback(&self) -> Result<isize, Box<dyn Error>> {
-        let mut position = self.fb_pair.0.get_state().await?;
+    async fn get_feedback(&self) -> isize {
+        let mut position = self.fb_pair.0.get_state().await;
         if let Some(fb) = &self.fb_pair.1 {
-            let pos_b = fb.get_state().await?;
+            let pos_b = fb.get_state().await;
             position = (position + pos_b) / 2
         }
-        Ok(position)
+        position
     }
 
-    async fn actuate(&self, power: HBridgeState) -> Result<(), Box<dyn Error>> {
+    async fn actuate(&self, power: HBridgeState){
         match power {
             HBridgeState::Pos => {
-                self.output_pair.0.set_state(OutputState::On).await?;
+                self.output_pair.0.set_state(OutputState::On).await;
             }
             HBridgeState::Neg => {
-                self.output_pair.1.set_state(OutputState::On).await?;
+                self.output_pair.1.set_state(OutputState::On).await;
             }
             HBridgeState::Off => {
-                self.output_pair.0.set_state(OutputState::Off).await?;
-                self.output_pair.1.set_state(OutputState::Off).await?;
+                self.output_pair.0.set_state(OutputState::Off).await;
+                self.output_pair.1.set_state(OutputState::Off).await;
             }
         }
-        Ok(())
     }
 }
 
