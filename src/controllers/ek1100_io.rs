@@ -48,7 +48,7 @@ impl IOCard {
         self.tx.send(msg).await.unwrap();
     }
 }
-
+#[derive(Clone)]
 pub struct Controller {
     io: Vec<IOCard>,
 }
