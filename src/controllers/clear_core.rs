@@ -1,4 +1,4 @@
-use crate::components::clear_core_io::{AnalogInput, Input, Output};
+use crate::components::clear_core_io::{AnalogInput, HBridge, Input, Output};
 use crate::components::clear_core_motor::ClearCoreMotor;
 use crate::interface::tcp::client;
 use std::error::Error;
@@ -18,6 +18,8 @@ pub const RESULT_IDX: u8 = 3;
 const NO_DIGITAL_INPUTS: usize = 3;
 const NO_ANALOG_INPUTS: usize = 4;
 const NO_OUTPUTS: usize = 6;
+const NO_HBRIDGE: usize = 2;
+
 
 pub struct Message {
     pub buffer: Vec<u8>,
@@ -29,6 +31,7 @@ pub type Inputs = Vec<Input>;
 
 pub type AnalogInputs = Vec<AnalogInput>;
 pub type Outputs = Vec<Output>;
+pub type HBridges = [HBridge;2];
 
 pub struct MotorBuilder {
     pub id: u8,
@@ -44,6 +47,7 @@ pub struct Controller {
     digital_inputs: Inputs,
     analog_inputs: AnalogInputs,
     outputs: Outputs,
+    h_bridges: HBridges
 }
 
 impl Controller {
@@ -66,12 +70,18 @@ impl Controller {
         let outputs = (0..NO_OUTPUTS)
             .map(|index| Output::new(index as u8, tx.clone()))
             .collect();
-
+        
+        let h_bridges = [
+            HBridge::new(4, 32700, tx.clone()), 
+            HBridge::new(5, 32700, tx.clone())
+        ];
+        
         Controller {
             motors,
             digital_inputs,
             analog_inputs,
             outputs,
+            h_bridges
         }
     }
 
@@ -100,6 +110,11 @@ impl Controller {
 
     pub fn get_output(&self, id: usize) -> Option<&Output> {
         self.outputs.get(id)
+    }
+    
+    pub fn get_h_bridge(&self, id: usize) -> Option<&HBridge> {
+        let idx = id - 4;
+        self.h_bridges.get(idx)
     }
 }
 
