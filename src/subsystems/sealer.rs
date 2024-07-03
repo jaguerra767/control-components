@@ -49,35 +49,35 @@ impl<'a> Sealer<'a> {
     }
 }
 
-#[tokio::test]
-async fn test_sealer() {
-    use env_logger::Env;
-    use crate::controllers::clear_core::{MotorBuilder, Controller};
-    use crate::controllers::ek1100_io;
-    env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
-    let interface = "enp1s0f0";
-    let (mut ethercat_io, eth_client) = ek1100_io::Controller::with_client(interface, 1);
-    let eth_client_handler = tokio::spawn(eth_client);
-
-    tokio::time::sleep(Duration::from_secs_f64(3.0)).await;
-    let motors = [MotorBuilder { id: 0, scale: 800 }];
-    let (cc1, cc_client) = Controller::with_client("192.168.1.11:8888", &motors);
-
-    let cc_client_handler = tokio::spawn(cc_client);
-
-    let heater = cc1.get_output(1).unwrap();
-
-    let actuator = ethercat_io.get_io(0).unwrap();
-
-    let extend = 3;
-    let retract = 2;
-
-    let mut sealer = Sealer::new(heater, actuator, extend, retract);
-    tokio::time::sleep(Duration::from_secs_f64(3.0)).await;
-    sealer.seal().await;
-
-    drop(cc1);
-    drop(ethercat_io);
-
-    let _ = tokio::join!(eth_client_handler, cc_client_handler);
-}
+// #[tokio::test]
+// async fn test_sealer() {
+//     use env_logger::Env;
+//     use crate::controllers::clear_core::{MotorBuilder, Controller};
+//     use crate::controllers::ek1100_io;
+//     env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
+//     let interface = "enp1s0f0";
+//     let (mut ethercat_io, eth_client) = ek1100_io::Controller::with_client(interface, 1);
+//     let eth_client_handler = tokio::spawn(eth_client);
+// 
+//     tokio::time::sleep(Duration::from_secs_f64(3.0)).await;
+//     let motors = [MotorBuilder { id: 0, scale: 800 }];
+//     let (cc1, cc_client) = Controller::with_client("192.168.1.11:8888", &motors);
+// 
+//     let cc_client_handler = tokio::spawn(cc_client);
+// 
+//     let heater = cc1.get_output(1).unwrap();
+// 
+//     let actuator = ethercat_io.get_io(0).unwrap();
+// 
+//     let extend = 3;
+//     let retract = 2;
+// 
+//     let mut sealer = Sealer::new(heater, actuator, extend, retract);
+//     tokio::time::sleep(Duration::from_secs_f64(3.0)).await;
+//     sealer.seal().await;
+// 
+//     drop(cc1);
+//     drop(ethercat_io);
+// 
+//     let _ = tokio::join!(eth_client_handler, cc_client_handler);
+// }
