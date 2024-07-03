@@ -2,17 +2,17 @@ use crate::components::clear_core_io::{Output, OutputState};
 use crate::controllers::ek1100_io::IOCard;
 use std::time::Duration;
 
-pub struct Sealer<'a> {
-    heater: &'a Output,
-    actuator_io: &'a mut IOCard,
+pub struct Sealer {
+    heater:  Output,
+    actuator_io: IOCard,
     extend_id: u8,
     retract_id: u8,
 }
 
-impl<'a> Sealer<'a> {
+impl Sealer {
     pub fn new(
-        heater: &'a Output,
-        actuator_io: &'a mut IOCard,
+        heater:  Output,
+        actuator_io: IOCard,
         extend_id: u8,
         retract_id: u8,
     ) -> Self {

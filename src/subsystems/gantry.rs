@@ -10,7 +10,7 @@ pub enum GantryCommand {
 }
 
 pub async fn gantry(
-    motor: &ClearCoreMotor,
+    motor: ClearCoreMotor,
     mut rx: Receiver<GantryCommand>,
 ) -> Result<(), Box<dyn Error + Send + Sync>> {
     motor.set_acceleration(40.).await;

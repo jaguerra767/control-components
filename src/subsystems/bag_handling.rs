@@ -5,16 +5,16 @@ use std::error::Error;
 use std::time::Duration;
 use tokio::time::sleep;
 
-pub struct BagGripper<'a> {
-    motor: &'a ClearCoreMotor,
-    actuator: SimpleLinearActuator<'a>,
+pub struct BagGripper {
+    motor: ClearCoreMotor,
+    actuator: SimpleLinearActuator,
     positions: Vec<f64>, //Revs, we have to make a units crate for this
 }
 
-impl<'a> BagGripper<'a> {
+impl BagGripper {
     pub fn new(
-        motor: &'a ClearCoreMotor,
-        actuator: SimpleLinearActuator<'a>,
+        motor: ClearCoreMotor,
+        actuator: SimpleLinearActuator,
         positions: Vec<f64>,
     ) -> Self {
         Self {
@@ -44,13 +44,13 @@ impl<'a> BagGripper<'a> {
     }
 }
 
-pub struct BagDispenser<'a> {
-    motor: &'a ClearCoreMotor,
-    photo_eye: &'a Input,
+pub struct BagDispenser {
+    motor: ClearCoreMotor,
+    photo_eye: Input,
 }
 
-impl<'a> BagDispenser<'a> {
-    pub fn new(motor: &'a ClearCoreMotor, photo_eye: &'a Input) -> Self {
+impl BagDispenser {
+    pub fn new(motor: ClearCoreMotor, photo_eye: Input) -> Self {
         Self { motor, photo_eye }
     }
     pub async fn dispense(&self) -> Result<(), Box<dyn Error>> {
@@ -72,18 +72,7 @@ impl<'a> BagDispenser<'a> {
     }
 }
 
-//This is to be moved to ryo-os, only kept here for ctrl+c ctrl+v
-// pub async fn load_bag(bag_dispenser: BagDispenser, bag_gripper: BagGripper, blower: Output) {
-//     bag_gripper.close().await.unwrap();
-//     bag_dispenser.dispense().await.unwrap();
-//     blower.set_state(OutputState::On).await.unwrap();
-//     bag_gripper.open().await.unwrap();
-//     tokio::time::sleep(Duration::from_millis(1000)).await;
-//     bag_dispenser.pull_back().await.unwrap();
-//     bag_gripper.close().await.unwrap();
-//     blower.set_state(OutputState::Off).await.unwrap();
-//     bag_gripper.rip_bag().await.unwrap();
-// }
+
 
 // #[tokio::test]
 // async fn test_bag_dispense() {

@@ -56,12 +56,12 @@ impl DispensingParameters {
     }
 }
 
-pub struct Node<'a> {
-    motor: &'a ClearCoreMotor,
+pub struct Node {
+    motor: ClearCoreMotor,
 }
 
-impl<'a> Node<'a> {
-    pub fn new(motor: &'a ClearCoreMotor) -> Self {
+impl Node {
+    pub fn new(motor: ClearCoreMotor) -> Self {
         Self { motor }
     }
 

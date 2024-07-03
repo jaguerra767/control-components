@@ -26,6 +26,7 @@ pub struct Message {
     pub command: Command,
 }
 
+#[derive(Clone)]
 pub struct IOCard {
     state: u8,
     tx: Sender<Message>,
@@ -63,8 +64,8 @@ impl Controller {
         (Self::new(tx, io_qty), client(interface, rx))
     }
 
-    pub fn get_io(&mut self, card_id: usize) -> Option<&mut IOCard> {
-        self.io.get_mut(card_id)
+    pub fn get_io(&mut self, card_id: usize) -> IOCard {
+        self.io[card_id].clone()
     }
 }
 
@@ -165,7 +166,6 @@ pub async fn client(interface: &str, mut rx: Receiver<Message>) {
 #[tokio::test]
 async fn test_ek1100() {
     use env_logger::Env;
-    use log::error;
     use tokio::join;
 
     env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
@@ -178,16 +178,13 @@ async fn test_ek1100() {
     tokio::time::sleep(Duration::from_secs(1)).await;
     let task = tokio::spawn(async move {
         info!("Hello from tasky task");
-        if let Some(io) = controller.get_io(0) {
+            let mut  io = controller.get_io(0); 
             for i in 0..8 {
                 io.set_state(1, i, true).await;
                 tokio::time::sleep(Duration::from_secs(1)).await;
                 io.set_state(1, i, false).await;
                 tokio::time::sleep(Duration::from_secs(1)).await;
             }
-        } else {
-            error!("Failed to get IO");
-        }
     });
 
     let _ = join!(client_handler, task);

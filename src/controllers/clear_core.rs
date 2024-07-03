@@ -3,6 +3,7 @@ use crate::components::clear_core_motor::{ClearCoreMotor, Status};
 use crate::interface::tcp::client;
 use std::error::Error;
 use std::future::Future;
+use log::{error, info};
 use tokio::net::ToSocketAddrs;
 use tokio::sync::mpsc::{channel, Sender};
 use tokio::sync::oneshot;
@@ -185,83 +186,83 @@ async fn test_controller() {
     controller_task_1.await.unwrap();
 }
 
-// #[tokio::test]
-// async fn test_controller_with_client() {
-//     use std::net::SocketAddr;
-//     use std::sync::Arc;
-//     use tokio::io::{AsyncReadExt, AsyncWriteExt};
-//     use tokio::join;
-//     use tokio::net::TcpListener;
-//     use tokio::sync::Mutex;
-// 
-//     env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
-//     //We need this MotorBuilder struct to inject the motor scale into the controller, the id part is
-//     //Kind of unnecessary, but it might be valuable for having named ids in ryo-os
-//     let motors = [
-//         MotorBuilder { id: 0, scale: 800 },
-//         MotorBuilder { id: 1, scale: 800 },
-//         MotorBuilder { id: 2, scale: 800 },
-//         MotorBuilder { id: 3, scale: 800 },
-//     ];
-// 
-//     let mut reply_buffer = [0; 128];
-// 
-//     let server_task = tokio::spawn(async move {
-//         let addr = SocketAddr::from(([127, 0, 0, 1], 8888));
-//         let listener = TcpListener::bind(addr).await.unwrap();
-//         let (mut stream, _) = listener.accept().await.unwrap();
-//         stream.read(reply_buffer.as_mut_slice()).await.unwrap();
-//         assert_eq!(reply_buffer[0], 0x02);
-//         assert_eq!(reply_buffer[1], b'M');
-//         let reply = [2, reply_buffer[1], reply_buffer[2], b'_'];
-//         stream.write_all(reply.as_slice()).await.unwrap();
-//     });
-//     let shutdown = Arc::new(AtomicBool::new(false));
-//     signal_hook::flag::register(signal_hook::consts::SIGINT, Arc::clone(&shutdown))
-//         .expect("Register hook");
-// 
-//     //controller returns its rx that we can use it in its partner client actor, I'm debating whether
-//     //Instead of returning a rx we can return a future that can be plugged into spawn directly but
-//     let (controller, client) = Controller::with_client("127.0.0.1:8888", motors.as_slice());
-// 
-//     let cc1 = Arc::new(Mutex::from(controller));
-//     let task_1_cc_1 = cc1.clone();
-// 
-//    
-//     
-//     // //Tasks that do stuff use a reference to controller
-//     // let controller_task_1 = tokio::spawn(async move {
-//     //     loop {
-//     //             if let Some(motor) = task_1_cc_1.lock().await.get_motor(0) {
-//     //                 info!("Lock Acquired from motor task");
-//     //                 if let Err(e) = motor.enable().await {
-//     //                     eprintln!("{e}");
-//     //                 }
-//     //             }
-//     //      tokio::time::sleep(Duration::from_secs(1)).await;
-//     //     }
-//     // });
-//     // 
-//     // let controller_task_2 = tokio::spawn(async move {
-//     //     loop {
-//     //         {
-//     //             if let Some(input) = cc1.lock().await.get_digital_inputs(0) {
-//     //                 info!("Lock Acquired from input task");
-//     //                 if let Ok(input) = input.get_state().await {
-//     //                     info!("My state: {input}");
-//     //                 }
-//     //             }
-//     //         }
-//     //         tokio::time::sleep(Duration::from_secs(1)).await;
-//     //     }
-//     // });
-// 
-//     //We can start a task with the returned client ensuring that we always use the right client
-//     let mock_client = tokio::spawn(client);
-//     let _ = join!(
-//         mock_client,
-//         controller_task_1,
-//         controller_task_2,
-//         server_task
-//     );
-// }
+#[tokio::test]
+async fn test_controller_with_client() {
+    use env_logger::Env;
+    use std::net::SocketAddr;
+    use std::sync::Arc;
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+    use tokio::join;
+    use tokio::net::TcpListener;
+    use tokio::sync::Mutex;
+    use std::sync::atomic::AtomicBool;
+    use tokio::time::{sleep, Duration};
+    
+    env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
+    //We need this MotorBuilder struct to inject the motor scale into the controller, the id part is
+    //Kind of unnecessary, but it might be valuable for having named ids in ryo-os
+    let motors = [
+        MotorBuilder { id: 0, scale: 800 },
+        MotorBuilder { id: 1, scale: 800 },
+        MotorBuilder { id: 2, scale: 800 },
+        MotorBuilder { id: 3, scale: 800 },
+    ];
+
+    let mut reply_buffer = [0; 128];
+
+    let server_task = tokio::spawn(async move {
+        let addr = SocketAddr::from(([127, 0, 0, 1], 8888));
+        let listener = TcpListener::bind(addr).await.unwrap();
+        let (mut stream, _) = listener.accept().await.unwrap();
+        stream.read(reply_buffer.as_mut_slice()).await.unwrap();
+        assert_eq!(reply_buffer[0], 0x02);
+        assert_eq!(reply_buffer[1], b'M');
+        let reply = [2, reply_buffer[1], reply_buffer[2], b'_'];
+        stream.write_all(reply.as_slice()).await.unwrap();
+    });
+    let shutdown = Arc::new(AtomicBool::new(false));
+    signal_hook::flag::register(signal_hook::consts::SIGINT, Arc::clone(&shutdown))
+        .expect("Register hook");
+
+    //controller returns its rx that we can use it in its partner client actor, I'm debating whether
+    //Instead of returning a rx we can return a future that can be plugged into spawn directly but
+    let (controller, client) = Controller::with_client("127.0.0.1:8888", motors.as_slice());
+
+    let cc1 = Arc::new(Mutex::from(controller));
+    let task_1_cc_1 = cc1.clone();
+
+   
+    
+    //Tasks that do stuff use a reference to controller
+    let controller_task_1 = tokio::spawn(async move {
+        loop {
+                let motor = task_1_cc_1.lock().await.get_motor(0);
+                if let Err(e) = motor.enable().await {
+                    error!("Motor failed to enable {:?}",e);
+                }
+                sleep(Duration::from_secs(1)).await;
+        }
+    });
+    
+    let controller_task_2 = tokio::spawn(async move {
+        loop {
+            {
+                let input = cc1.lock().await.get_digital_input(0);
+                info!("Lock Acquired from input task");
+                let state = input.get_state().await;
+                info!("{state}");
+                
+            }
+            tokio::time::sleep(Duration::from_secs(1)).await;
+        }
+    });
+
+    //We can start a task with the returned client ensuring that we always use the right client
+    let mock_client = tokio::spawn(client);
+    let _ = join!(
+        mock_client,
+        controller_task_1,
+        controller_task_2,
+        server_task
+    );
+}
