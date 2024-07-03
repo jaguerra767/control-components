@@ -1,7 +1,6 @@
 use crate::components::send_recv::SendRecv;
 use crate::controllers::clear_core::{Message, CR, STX};
 use crate::util::utils::{ascii_to_int, int_to_byte, num_to_bytes};
-use std::error::Error;
 use tokio::sync::mpsc::Sender;
 
 pub const CLEAR_CORE_H_BRIDGE_MAX: i16 = 32760;
@@ -17,9 +16,9 @@ impl Input {
         Self { cmd, drive_sender }
     }
 
-    pub async fn get_state(&self) -> Result<bool, Box<dyn Error>> {
-        let res = self.write(self.cmd.as_slice()).await?;
-        Ok(ascii_to_int(&res[3..]) == 1)
+    pub async fn get_state(&self) -> bool {
+        let res = self.write(self.cmd.as_slice()).await;
+        ascii_to_int(&res[3..]) == 1
     }
 }
 
@@ -40,9 +39,9 @@ impl AnalogInput {
         Self { cmd, drive_sender }
     }
 
-    pub async fn get_state(&self) -> Result<isize, Box<dyn Error>> {
-        let res = self.write(self.cmd.as_slice()).await?;
-        Ok(ascii_to_int(&res[3..]))
+    pub async fn get_state(&self) -> isize {
+        let res = self.write(self.cmd.as_slice()).await;
+        ascii_to_int(&res[3..])
     }
 }
 
@@ -81,9 +80,9 @@ impl Output {
         }
     }
 
-    pub async fn set_state(&self, state: OutputState) -> Result<isize, Box<dyn Error>> {
-        let res = self.write(self.command_builder(state).as_slice()).await?;
-        Ok(ascii_to_int(&res[3..]))
+    pub async fn set_state(&self, state: OutputState) -> isize {
+        let res = self.write(self.command_builder(state).as_slice()).await;
+        ascii_to_int(&res[3..])
     }
 }
 
@@ -129,9 +128,8 @@ impl HBridge {
         cmd
     }
 
-    pub async fn set_state(&self, state: HBridgeState) -> Result<(), Box<dyn Error>> {
-        self.write(self.command_builder(state).as_slice()).await?;
-        Ok(())
+    pub async fn set_state(&self, state: HBridgeState) {
+        self.write(self.command_builder(state).as_slice()).await;
     }
 }
 

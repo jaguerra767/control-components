@@ -13,18 +13,18 @@ pub async fn gantry(
     motor: &ClearCoreMotor,
     mut rx: Receiver<GantryCommand>,
 ) -> Result<(), Box<dyn Error + Send + Sync>> {
-    motor.set_acceleration(40.).await.unwrap();
-    motor.set_velocity(300.).await.unwrap();
+    motor.set_acceleration(40.).await;
+    motor.set_velocity(300.).await;
     motor.enable().await.unwrap();
     while let Some(cmd) = rx.recv().await {
         match cmd {
             GantryCommand::GetPosition(sender) => {
-                let pos = motor.get_position().await.unwrap();
+                let pos = motor.get_position().await;
                 sender.send(pos).unwrap();
             }
             GantryCommand::GoTo(pos) => {
                 motor.absolute_move(pos).await.unwrap();
-                while motor.get_status().await.unwrap() == Status::Moving {
+                while motor.get_status().await == Status::Moving {
                     tokio::time::sleep(Duration::from_secs_f64(1.0)).await;
                 }
             }

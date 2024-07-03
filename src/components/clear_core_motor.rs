@@ -2,7 +2,6 @@ use crate::components::send_recv::SendRecv;
 use crate::subsystems::linear_actuator::Message;
 use crate::util::utils::{ascii_to_int, make_prefix, num_to_bytes};
 use serde::Serialize;
-use std::error::Error;
 use std::result::Result;
 pub use std::time::Duration;
 use log::error;

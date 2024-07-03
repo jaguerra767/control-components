@@ -24,16 +24,14 @@ impl<'a> BagGripper<'a> {
         }
     }
 
-    pub async fn open(&self) -> Result<(), Box<dyn Error>> {
-        self.actuator.actuate(HBridgeState::Pos).await.unwrap();
+    pub async fn open(&self){
+        self.actuator.actuate(HBridgeState::Pos).await;
         sleep(Duration::from_secs_f64(2.0)).await;
-        Ok(())
     }
 
-    pub async fn close(&self) -> Result<(), Box<dyn Error>> {
-        self.actuator.actuate(HBridgeState::Neg).await.unwrap();
+    pub async fn close(&self) {
+        self.actuator.actuate(HBridgeState::Neg).await;
         sleep(Duration::from_secs_f64(2.0)).await;
-        Ok(())
     }
     pub async fn rip_bag(&self) -> Result<(), Box<dyn Error>> {
         for pos in self.positions.as_slice() {
@@ -41,7 +39,6 @@ impl<'a> BagGripper<'a> {
             self.motor
                 .wait_for_move(Duration::from_millis(150))
                 .await
-                .unwrap();
         }
         Ok(())
     }
@@ -57,18 +54,18 @@ impl<'a> BagDispenser<'a> {
         Self { motor, photo_eye }
     }
     pub async fn dispense(&self) -> Result<(), Box<dyn Error>> {
-        self.motor.set_velocity(3.0).await.unwrap();
-        self.motor.relative_move(1000.0).await.unwrap();
-        while !self.photo_eye.get_state().await.unwrap() {
+        self.motor.set_velocity(3.0).await;
+        self.motor.relative_move(1000.0).await.expect("TODO: panic message");
+        while !self.photo_eye.get_state().await {
             sleep(Duration::from_millis(100)).await;
         }
-        self.motor.abrupt_stop().await.unwrap();
+        self.motor.abrupt_stop().await;
         Ok(())
     }
     pub async fn pull_back(&self) -> Result<(), Box<dyn Error>> {
-        self.motor.set_velocity(0.5).await.unwrap();
+        self.motor.set_velocity(0.5).await;
         self.motor.relative_move(-4.5).await.unwrap();
-        while self.motor.get_status().await.unwrap() == Status::Moving {
+        while self.motor.get_status().await == Status::Moving {
             sleep(Duration::from_millis(100)).await;
         }
         Ok(())
