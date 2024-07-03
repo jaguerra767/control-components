@@ -5,7 +5,11 @@ use serde::Serialize;
 use std::error::Error;
 use std::result::Result;
 pub use std::time::Duration;
+use log::error;
 use tokio::sync::mpsc::Sender;
+
+const REPLY_IDX: usize = 3;
+const SUCCESSFUL_REPLY: u8 = b'_';
 
 #[derive(Debug, PartialOrd, PartialEq, Serialize)]
 pub enum Status {
@@ -16,6 +20,7 @@ pub enum Status {
     Moving,
     Unknown,
 }
+
 
 pub struct ClearCoreMotor {
     id: u8,
@@ -35,77 +40,90 @@ impl ClearCoreMotor {
         }
     }
 
-    pub async fn enable(&self) -> Result<&Self, Box<dyn Error>> {
+    pub async fn enable(&self) -> Result<&Self, Status> {
         let enable_cmd = [2, b'M', self.id + 48, b'E', b'N', 13];
-        self.write(enable_cmd.as_ref()).await?;
-        Ok(self)
+        let resp = self.write(enable_cmd.as_ref()).await;
+        if resp[REPLY_IDX] == SUCCESSFUL_REPLY{
+            Ok(self) 
+        } else {
+            error!("Motor Faulted!");
+            Err(Status::Faulted)
+        }
     }
 
-    pub async fn disable(&self) -> Result<(), Box<dyn Error>> {
+    pub async fn disable(&self){
         let enable_cmd = [2, b'M', self.id + 48, b'D', b'E', 13];
-        self.write(enable_cmd.as_ref()).await?;
-        Ok(())
+        self.write(enable_cmd.as_ref()).await;
     }
 
-    pub async fn absolute_move(&self, position: f64) -> Result<(), Box<dyn Error>> {
+    pub async fn absolute_move(&self, position: f64) -> Result<(), Status> {
         let position = num_to_bytes((position * (self.scale as f64)).trunc() as isize);
         let mut msg: Vec<u8> = Vec::with_capacity(position.len() + self.prefix.len() + 1);
         msg.extend_from_slice(self.prefix.as_slice());
         msg.extend_from_slice(b"AM");
         msg.extend_from_slice(position.as_slice());
         msg.push(13);
-        self.write(msg.as_slice()).await?;
-        Ok(())
+        let res = self.write(msg.as_slice()).await;
+        if res[REPLY_IDX] == SUCCESSFUL_REPLY {
+            Ok(())
+        } else {
+            Err(self.get_status().await)
+        }
     }
 
-    pub async fn relative_move(&self, position: f64) -> Result<(), Box<dyn Error>> {
+    pub async fn relative_move(&self, position: f64) -> Result<(), Status> {
         let position = num_to_bytes((position * (self.scale as f64)).trunc() as isize);
         let mut msg: Vec<u8> = Vec::with_capacity(position.len() + self.prefix.len() + 1);
         msg.extend_from_slice(self.prefix.as_slice());
         msg.extend_from_slice(b"RM");
         msg.extend_from_slice(position.as_slice());
         msg.push(13);
-        self.write(msg.as_slice()).await?;
-        Ok(())
+        let res = self.write(msg.as_slice()).await;
+        if res[REPLY_IDX] == SUCCESSFUL_REPLY {
+            Ok(())
+        } else {
+            Err(self.get_status().await)
+        } 
     }
 
-    pub async fn jog(&self, speed: f64) -> Result<(), Box<dyn Error>> {
+    pub async fn jog(&self, speed: f64) -> Result<(), Status> {
         let speed = num_to_bytes((speed * (self.scale as f64)).trunc() as isize);
         let mut msg: Vec<u8> = Vec::with_capacity(speed.len() + self.prefix.len() + 1);
         msg.extend_from_slice(self.prefix.as_slice());
         msg.extend_from_slice(b"JG");
         msg.extend_from_slice(speed.as_slice());
         msg.push(13);
-        self.write(msg.as_slice()).await?;
-        Ok(())
+        let res = self.write(msg.as_slice()).await;
+        if res[REPLY_IDX] == SUCCESSFUL_REPLY {
+            Ok(())
+        } else {
+            Err(self.get_status().await)
+        }
     }
 
-    pub async fn abrupt_stop(&self) -> Result<(), Box<dyn Error>> {
+    pub async fn abrupt_stop(&self) {
         let stop_cmd = [2, b'M', self.id + 48, b'A', b'S', 13];
-        self.write(stop_cmd.as_ref()).await?;
-        Ok(())
+        self.write(stop_cmd.as_ref()).await;
     }
 
-    pub async fn stop(&self) -> Result<(), Box<dyn Error>> {
+    pub async fn stop(&self) {
         let stop_cmd = [2, b'M', self.id + 48, b'S', b'T', 13];
-        self.write(stop_cmd.as_ref()).await?;
-        Ok(())
+        self.write(stop_cmd.as_ref()).await;
     }
 
-    pub async fn set_position(&self, position: isize) -> Result<(), Box<dyn Error>> {
+    pub async fn set_position(&self, position: isize) {
         let pos = num_to_bytes(position * self.scale as isize);
         let mut msg: Vec<u8> = Vec::with_capacity(pos.len() + self.prefix.len() + 1);
         msg.extend_from_slice(self.prefix.as_slice());
         msg.extend_from_slice(b"SP");
         msg.extend_from_slice(pos.as_slice());
         msg.push(13);
-        self.write(msg.as_slice()).await?;
-        Ok(())
+        self.write(msg.as_slice()).await;
     }
 
-    pub async fn set_velocity(&self, velocity: f64) -> Result<(), Box<dyn Error>> {
+    pub async fn set_velocity(&self, mut velocity: f64){
         if velocity < 0. {
-            return Err(Box::from("Velocity must be positive"));
+           velocity = 0.; 
         }
         let vel = num_to_bytes((velocity * (self.scale as f64)).trunc() as isize);
         let mut msg: Vec<u8> = Vec::with_capacity(vel.len() + self.prefix.len() + 1);
@@ -113,63 +131,57 @@ impl ClearCoreMotor {
         msg.extend_from_slice(b"SV");
         msg.extend_from_slice(vel.as_slice());
         msg.push(13);
-        self.write(msg.as_slice()).await?;
-        Ok(())
+        self.write(msg.as_slice()).await;
     }
 
-    pub async fn set_acceleration(&self, acceleration: f64) -> Result<(), Box<dyn Error>> {
+    pub async fn set_acceleration(&self, acceleration: f64) {
         let accel = num_to_bytes((acceleration * (self.scale as f64)).trunc() as isize);
         let mut msg: Vec<u8> = Vec::with_capacity(accel.len() + self.prefix.len() + 1);
         msg.extend_from_slice(self.prefix.as_slice());
         msg.extend_from_slice(b"SA");
         msg.extend_from_slice(accel.as_slice());
         msg.push(13);
-        self.write(msg.as_slice()).await?;
-        Ok(())
+        self.write(msg.as_slice()).await;
     }
 
-    pub async fn set_deceleration(&self, deceleration: f64) -> Result<(), Box<dyn Error>> {
+    pub async fn set_deceleration(&self, deceleration: f64) {
         let accel = num_to_bytes((deceleration * (self.scale as f64)).trunc() as isize);
         let mut msg: Vec<u8> = Vec::with_capacity(accel.len() + self.prefix.len() + 1);
         msg.extend_from_slice(self.prefix.as_slice());
         msg.extend_from_slice(b"SD");
         msg.extend_from_slice(accel.as_slice());
         msg.push(13);
-        self.write(msg.as_slice()).await?;
-        Ok(())
+        self.write(msg.as_slice()).await;
     }
 
-    pub async fn get_status(&self) -> Result<Status, Box<dyn Error>> {
+    pub async fn get_status(&self) -> Status {
         let status_cmd = [2, b'M', self.id + 48, b'G', b'S', 13];
-        let res = self.write(status_cmd.as_slice()).await?;
+        let res = self.write(status_cmd.as_slice()).await;
         match res[3] {
-            48 => Ok(Status::Disabled),
-            49 => Ok(Status::Enabling),
-            50 => Ok(Status::Faulted),
-            51 => Ok(Status::Ready),
-            52 => Ok(Status::Moving),
-            _ => Ok(Status::Unknown),
+            48 => Status::Disabled,
+            49 => Status::Enabling,
+            50 => Status::Faulted,
+            51 => Status::Ready,
+            52 => Status::Moving,
+            _ => Status::Unknown,
         }
     }
 
-    pub async fn get_position(&self) -> Result<f64, Box<dyn Error>> {
+    pub async fn get_position(&self) -> f64 {
         let get_pos_cmd = [2, b'M', self.id + 48, b'G', b'P', 13];
-        let res = self.write(get_pos_cmd.as_slice()).await?;
-        let pos = (ascii_to_int(res.as_slice()) as f64) / (self.scale as f64);
-        Ok(pos)
+        let res = self.write(get_pos_cmd.as_slice()).await;
+        (ascii_to_int(res.as_slice()) as f64) / (self.scale as f64)
     }
 
-    pub async fn clear_alerts(&self) -> Result<(), Box<dyn Error>> {
+    pub async fn clear_alerts(&self) {
         let clear_cmd = [2, b'M', self.id + 48, b'C', b'A', 13];
-        self.write(clear_cmd.as_slice()).await?;
-        Ok(())
+        self.write(clear_cmd.as_slice()).await;
     }
 
-    pub async fn wait_for_move(&self, sampling_rate: Duration) -> Result<(), Box<dyn Error>> {
-        while self.get_status().await.unwrap() == Status::Moving {
+    pub async fn wait_for_move(&self, sampling_rate: Duration) {
+        while self.get_status().await == Status::Moving {
             tokio::time::sleep(sampling_rate).await;
         }
-        Ok(())
     }
 }
 
