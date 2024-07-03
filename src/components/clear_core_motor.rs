@@ -1,5 +1,4 @@
 use crate::components::send_recv::SendRecv;
-use crate::interface::tcp::client;
 use crate::subsystems::linear_actuator::Message;
 use crate::util::utils::{ascii_to_int, make_prefix, num_to_bytes};
 use serde::Serialize;
@@ -21,12 +20,12 @@ pub enum Status {
 pub struct ClearCoreMotor {
     id: u8,
     prefix: [u8; 3],
-    scale: isize,
+    scale: usize,
     drive_sender: Sender<Message>,
 }
 
 impl ClearCoreMotor {
-    pub fn new(id: u8, scale: isize, drive_sender: Sender<Message>) -> Self {
+    pub fn new(id: u8, scale: usize, drive_sender: Sender<Message>) -> Self {
         let prefix = make_prefix(b'M', id);
         ClearCoreMotor {
             id,
@@ -94,7 +93,7 @@ impl ClearCoreMotor {
     }
 
     pub async fn set_position(&self, position: isize) -> Result<(), Box<dyn Error>> {
-        let pos = num_to_bytes(position * self.scale);
+        let pos = num_to_bytes(position * self.scale as isize);
         let mut msg: Vec<u8> = Vec::with_capacity(pos.len() + self.prefix.len() + 1);
         msg.extend_from_slice(self.prefix.as_slice());
         msg.extend_from_slice(b"SP");
@@ -287,33 +286,33 @@ impl SendRecv for ClearCoreMotor {
 //     enable.await.unwrap();
 // }
 
-#[tokio::test]
-async fn test_gantry() {
-    let (tx, rx) = tokio::sync::mpsc::channel(10);
-    let cc1_handler = tokio::spawn(client("192.168.1.11:8888", rx));
-    let motor = ClearCoreMotor::new(0, 800, tx);
-    let task = tokio::spawn(async move {
-        //motor.enable().await.unwrap();
-        let motor_status = motor.get_status().await.unwrap();
-        assert_eq!(motor_status, Status::Ready);
-        //motor.set_velocity(50.).await.unwrap();
-        motor.relative_move(-22.5).await.unwrap();
-    });
-    let (_, _) = tokio::join!(task, cc1_handler);
-}
-
-#[tokio::test]
-async fn test_gantry_pos() {
-    let (tx, rx) = tokio::sync::mpsc::channel(10);
-    let cc1_handler = tokio::spawn(client("192.168.1.11:8888", rx));
-    let motor = ClearCoreMotor::new(0, 800, tx);
-    let task = tokio::spawn(async move {
-        let motor_status = motor.get_status().await.unwrap();
-        assert_eq!(motor_status, Status::Ready);
-        //motor.set_velocity(50.).await.unwrap();
-        //motor.relative_move(-1.0).await.unwrap();
-        let pos = motor.get_position().await.unwrap();
-        println!("{pos}");
-    });
-    let (_, _) = tokio::join!(task, cc1_handler);
-}
+// #[tokio::test]
+// async fn test_gantry() {
+//     let (tx, rx) = tokio::sync::mpsc::channel(10);
+//     let cc1_handler = tokio::spawn(client("192.168.1.11:8888", rx));
+//     let motor = ClearCoreMotor::new(0, 800, tx);
+//     let task = tokio::spawn(async move {
+//         //motor.enable().await.unwrap();
+//         let motor_status = motor.get_status().await.unwrap();
+//         assert_eq!(motor_status, Status::Ready);
+//         //motor.set_velocity(50.).await.unwrap();
+//         motor.relative_move(-22.5).await.unwrap();
+//     });
+//     let (_, _) = tokio::join!(task, cc1_handler);
+// }
+//
+// #[tokio::test]
+// async fn test_gantry_pos() {
+//     let (tx, rx) = tokio::sync::mpsc::channel(10);
+//     let cc1_handler = tokio::spawn(client("192.168.1.11:8888", rx));
+//     let motor = ClearCoreMotor::new(0, 800, tx);
+//     let task = tokio::spawn(async move {
+//         let motor_status = motor.get_status().await.unwrap();
+//         assert_eq!(motor_status, Status::Ready);
+//         //motor.set_velocity(50.).await.unwrap();
+//         //motor.relative_move(-1.0).await.unwrap();
+//         let pos = motor.get_position().await.unwrap();
+//         println!("{pos}");
+//     });
+//     let (_, _) = tokio::join!(task, cc1_handler);
+// }

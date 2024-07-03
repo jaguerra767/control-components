@@ -1,6 +1,5 @@
 use crate::components::clear_core_io::HBridgeState;
-use crate::interface::tcp::client;
-use crate::subsystems::linear_actuator::{LinearActuator, RelayHBridge};
+use crate::subsystems::linear_actuator::LinearActuator;
 use std::error::Error;
 use std::time::Duration;
 use tokio::time::Instant;
@@ -64,85 +63,85 @@ impl<T: LinearActuator> Hatch<T> {
     }
 }
 
-#[tokio::test]
-async fn open_all() {
-    let (tx, rx) = tokio::sync::mpsc::channel(10);
-    let (tx2, rx2) = tokio::sync::mpsc::channel(10);
-    let linear_actuator1 = RelayHBridge::new(tx.clone(), (2, 3), 3);
-    let linear_actuator2 = RelayHBridge::new(tx, (4, 5), 4);
-    let linear_actuator3 = RelayHBridge::new(tx2.clone(), (0, 1), 3);
-    let linear_actuator4 = RelayHBridge::new(tx2, (2, 3), 4);
-    let cc1_handler = tokio::spawn(client("192.168.1.11:8888", rx));
-    let cc2_handler = tokio::spawn(client("192.168.1.12:8888", rx2));
-    let task = tokio::spawn(async move {
-        Hatch::new(linear_actuator1, Duration::from_secs_f64(3.))
-            .timed_open(Duration::from_secs_f64(2.1))
-            .await
-            .unwrap();
-        Hatch::new(linear_actuator2, Duration::from_secs_f64(3.))
-            .timed_open(Duration::from_secs_f64(2.1))
-            .await
-            .unwrap();
-        Hatch::new(linear_actuator3, Duration::from_secs_f64(3.))
-            .timed_open(Duration::from_secs_f64(2.1))
-            .await
-            .unwrap();
-        Hatch::new(linear_actuator4, Duration::from_secs_f64(3.))
-            .timed_open(Duration::from_secs_f64(2.1))
-            .await
-            .unwrap();
-    });
-    let (_, _, _) = tokio::join!(task, cc1_handler, cc2_handler);
-}
-
-#[tokio::test]
-async fn close_all() {
-    let (tx, rx) = tokio::sync::mpsc::channel(10);
-    let (tx2, rx2) = tokio::sync::mpsc::channel(10);
-    let linear_actuator1 = RelayHBridge::new(tx.clone(), (2, 3), 3);
-    let linear_actuator2 = RelayHBridge::new(tx, (4, 5), 4);
-    let linear_actuator3 = RelayHBridge::new(tx2.clone(), (0, 1), 3);
-    let linear_actuator4 = RelayHBridge::new(tx2, (2, 3), 4);
-    let cc1_handler = tokio::spawn(client("192.168.1.11:8888", rx));
-    let cc2_handler = tokio::spawn(client("192.168.1.12:8888", rx2));
-    let task = tokio::spawn(async move {
-        Hatch::new(linear_actuator1, Duration::from_secs_f64(3.))
-            .timed_close(Duration::from_secs_f64(2.1))
-            .await
-            .unwrap();
-        Hatch::new(linear_actuator2, Duration::from_secs_f64(3.))
-            .timed_close(Duration::from_secs_f64(2.1))
-            .await
-            .unwrap();
-        Hatch::new(linear_actuator3, Duration::from_secs_f64(3.))
-            .timed_close(Duration::from_secs_f64(2.1))
-            .await
-            .unwrap();
-        Hatch::new(linear_actuator4, Duration::from_secs_f64(3.))
-            .timed_close(Duration::from_secs_f64(2.1))
-            .await
-            .unwrap();
-    });
-    let (_, _, _) = tokio::join!(task, cc1_handler, cc2_handler);
-}
-
-#[tokio::test]
-async fn get_all_positions() {
-    let (tx, rx) = tokio::sync::mpsc::channel(10);
-    let linear_actuator1 = RelayHBridge::new(tx.clone(), (2, 3), 3);
-    let linear_actuator2 = RelayHBridge::new(tx, (4, 5), 4);
-    let cc1_handler = tokio::spawn(client("192.168.1.11:8888", rx));
-    let task = tokio::spawn(async move {
-        let pos = Hatch::new(linear_actuator1, Duration::from_secs_f64(0.3))
-            .get_position()
-            .await
-            .unwrap();
-        println!("{pos}");
-        let pos = Hatch::new(linear_actuator2, Duration::from_secs_f64(0.3))
-            .get_position()
-            .await
-            .unwrap();
-        println!("{pos}");
-    });
-    let (_, _) = tokio::join!(task, cc1_handler);
-}
+// #[tokio::test]
+// async fn open_all() {
+//     let (tx, rx) = tokio::sync::mpsc::channel(10);
+//     let (tx2, rx2) = tokio::sync::mpsc::channel(10);
+//     let linear_actuator1 = RelayHBridge::new(tx.clone(), (2, 3), 3);
+//     let linear_actuator2 = RelayHBridge::new(tx, (4, 5), 4);
+//     let linear_actuator3 = RelayHBridge::new(tx2.clone(), (0, 1), 3);
+//     let linear_actuator4 = RelayHBridge::new(tx2, (2, 3), 4);
+//     let cc1_handler = tokio::spawn(client("192.168.1.11:8888", rx));
+//     let cc2_handler = tokio::spawn(client("192.168.1.12:8888", rx2));
+//     let task = tokio::spawn(async move {
+//         Hatch::new(linear_actuator1, Duration::from_secs_f64(3.))
+//             .timed_open(Duration::from_secs_f64(2.1))
+//             .await
+//             .unwrap();
+//         Hatch::new(linear_actuator2, Duration::from_secs_f64(3.))
+//             .timed_open(Duration::from_secs_f64(2.1))
+//             .await
+//             .unwrap();
+//         Hatch::new(linear_actuator3, Duration::from_secs_f64(3.))
+//             .timed_open(Duration::from_secs_f64(2.1))
+//             .await
+//             .unwrap();
+//         Hatch::new(linear_actuator4, Duration::from_secs_f64(3.))
+//             .timed_open(Duration::from_secs_f64(2.1))
+//             .await
+//             .unwrap();
+//     });
+//     let (_, _, _) = tokio::join!(task, cc1_handler, cc2_handler);
+// }
+//
+// #[tokio::test]
+// async fn close_all() {
+//     let (tx, rx) = tokio::sync::mpsc::channel(10);
+//     let (tx2, rx2) = tokio::sync::mpsc::channel(10);
+//     let linear_actuator1 = RelayHBridge::new(tx.clone(), (2, 3), 3);
+//     let linear_actuator2 = RelayHBridge::new(tx, (4, 5), 4);
+//     let linear_actuator3 = RelayHBridge::new(tx2.clone(), (0, 1), 3);
+//     let linear_actuator4 = RelayHBridge::new(tx2, (2, 3), 4);
+//     let cc1_handler = tokio::spawn(client("192.168.1.11:8888", rx));
+//     let cc2_handler = tokio::spawn(client("192.168.1.12:8888", rx2));
+//     let task = tokio::spawn(async move {
+//         Hatch::new(linear_actuator1, Duration::from_secs_f64(3.))
+//             .timed_close(Duration::from_secs_f64(2.1))
+//             .await
+//             .unwrap();
+//         Hatch::new(linear_actuator2, Duration::from_secs_f64(3.))
+//             .timed_close(Duration::from_secs_f64(2.1))
+//             .await
+//             .unwrap();
+//         Hatch::new(linear_actuator3, Duration::from_secs_f64(3.))
+//             .timed_close(Duration::from_secs_f64(2.1))
+//             .await
+//             .unwrap();
+//         Hatch::new(linear_actuator4, Duration::from_secs_f64(3.))
+//             .timed_close(Duration::from_secs_f64(2.1))
+//             .await
+//             .unwrap();
+//     });
+//     let (_, _, _) = tokio::join!(task, cc1_handler, cc2_handler);
+// }
+//
+// #[tokio::test]
+// async fn get_all_positions() {
+//     let (tx, rx) = tokio::sync::mpsc::channel(10);
+//     let linear_actuator1 = RelayHBridge::new(tx.clone(), (2, 3), 3);
+//     let linear_actuator2 = RelayHBridge::new(tx, (4, 5), 4);
+//     let cc1_handler = tokio::spawn(client("192.168.1.11:8888", rx));
+//     let task = tokio::spawn(async move {
+//         let pos = Hatch::new(linear_actuator1, Duration::from_secs_f64(0.3))
+//             .get_position()
+//             .await
+//             .unwrap();
+//         println!("{pos}");
+//         let pos = Hatch::new(linear_actuator2, Duration::from_secs_f64(0.3))
+//             .get_position()
+//             .await
+//             .unwrap();
+//         println!("{pos}");
+//     });
+//     let (_, _) = tokio::join!(task, cc1_handler);
+// }
