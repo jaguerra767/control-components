@@ -26,12 +26,13 @@ pub struct Message {
     pub response: oneshot::Sender<Vec<u8>>,
 }
 
+//TODO: Change to arrays using array::from_fn
 pub type Motors = Vec<ClearCoreMotor>;
 pub type Inputs = Vec<Input>;
 
 pub type AnalogInputs = Vec<AnalogInput>;
 pub type Outputs = Vec<Output>;
-pub type HBridges = [HBridge;2];
+pub type HBridges = [HBridge;NO_HBRIDGE];
 
 pub struct MotorBuilder {
     pub id: u8,
