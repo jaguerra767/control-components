@@ -58,7 +58,7 @@ impl Controller {
         Self { io }
     }
 
-    pub fn with_client(interface: &'static str, io_qty: u8) -> (Self, impl Future<Output = ()>) {
+    pub fn with_client(interface: &str, io_qty: u8) -> (Self, impl Future<Output = ()> + '_) {
         let (tx, rx) = channel(100);
         (Self::new(tx, io_qty), client(interface, rx))
     }
