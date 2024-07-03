@@ -4,7 +4,7 @@ use crate::util::utils::{ascii_to_int, int_to_byte, num_to_bytes};
 use tokio::sync::mpsc::Sender;
 
 pub const CLEAR_CORE_H_BRIDGE_MAX: i16 = 32760;
-
+#[derive(Clone)]
 pub struct Input {
     cmd: [u8; 4],
     drive_sender: Sender<Message>,
@@ -27,7 +27,7 @@ impl SendRecv for Input {
         &self.drive_sender
     }
 }
-
+#[derive(Clone)]
 pub struct AnalogInput {
     cmd: [u8; 4],
     drive_sender: Sender<Message>,
@@ -55,7 +55,7 @@ pub enum OutputState {
     Off,
     On,
 }
-
+#[derive(Clone)]
 pub struct Output {
     on_cmd: [u8; 9],
     off_cmd: [u8; 9],
@@ -92,13 +92,13 @@ impl SendRecv for Output {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum HBridgeState {
     Pos,
     Neg,
     Off,
 }
-
+#[derive(Clone)]
 pub struct HBridge {
     power: i16,
     prefix: [u8; 3],

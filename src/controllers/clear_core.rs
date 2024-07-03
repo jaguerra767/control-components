@@ -1,11 +1,12 @@
 use crate::components::clear_core_io::{AnalogInput, HBridge, Input, Output};
-use crate::components::clear_core_motor::ClearCoreMotor;
+use crate::components::clear_core_motor::{ClearCoreMotor, Status};
 use crate::interface::tcp::client;
 use std::error::Error;
 use std::future::Future;
 use tokio::net::ToSocketAddrs;
 use tokio::sync::mpsc::{channel, Sender};
 use tokio::sync::oneshot;
+use tokio::task::JoinSet;
 
 pub const STX: u8 = 2;
 pub const CR: u8 = 13;
@@ -93,27 +94,66 @@ impl Controller {
         (Controller::new(tx, motors), client(addr, rx))
     }
 
-    pub fn get_motor(&self, id: usize) -> &ClearCoreMotor {
-        &self.motors[id]
-    }
-
-    pub fn get_digital_inputs(&self, id: usize) -> &Input {
-        &self.digital_inputs[id]
-    }
-
-    pub fn get_analog_input(&self, id: usize) -> &AnalogInput {
-        &self.analog_inputs[id]
-    }
-
-    pub fn get_output(&self, id: usize) -> &Output {
-        &self.outputs[id]
+    pub fn get_motor(&self, id: usize) -> ClearCoreMotor {
+        self.motors[id].clone()
     }
     
-    pub fn get_h_bridge(&self, id: usize) -> &HBridge {
+    pub fn get_motors(&self) -> Motors {
+        self.motors.clone()
+    }
+    
+
+    pub fn get_digital_input(&self, id: usize) -> Input {
+        self.digital_inputs[id].clone()
+    }
+    
+    pub fn get_digital_inputs(&self) -> Inputs {
+        self.digital_inputs.clone()
+    }
+
+    pub fn get_analog_input(&self, id: usize) -> AnalogInput {
+        self.analog_inputs[id].clone()
+        
+    }
+
+    pub fn get_analog_inputs(&self) -> AnalogInputs {
+        self.analog_inputs.clone()
+    }
+    pub fn get_output(&self, id: usize) -> Output {
+        self.outputs[id].clone()
+    }
+    
+    pub fn get_outputs(&self) -> Outputs {
+        self.outputs.clone()
+    }
+    
+    pub fn get_h_bridge(&self, id: usize) -> HBridge {
         let idx = id - 4;
-        &self.h_bridges[idx]
+        self.h_bridges[idx].clone()
+    }
+    
+    pub fn get_h_bridges(&self) -> HBridges {
+        self.h_bridges.clone()
     }
 }
+
+pub async fn get_all_motor_states(controller: Controller) -> Vec<Status> {
+    let mut statuses = Vec::with_capacity(controller.motors.len());
+    let mut set = JoinSet::new();
+    let motors = controller.get_motors();
+    motors.into_iter().for_each(|motor|{
+        let motor = motor.clone();
+        set.spawn( async move { motor.get_status().await});
+    });
+
+    while let Some(result) = set.join_next().await {
+        statuses.push(result.unwrap());
+    }
+    statuses
+}
+
+pub async fn get_all_input_states(controller: Controller) -> Vec<>
+
 
 #[tokio::test]
 async fn test_controller() {

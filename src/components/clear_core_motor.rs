@@ -20,7 +20,7 @@ pub enum Status {
     Unknown,
 }
 
-
+#[derive(Clone)]
 pub struct ClearCoreMotor {
     id: u8,
     prefix: [u8; 3],
