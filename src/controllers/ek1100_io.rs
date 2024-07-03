@@ -58,7 +58,7 @@ impl Controller {
         Self { io }
     }
 
-    pub fn with_client(interface: &'static str, io_qty: u8) -> (Self, impl Future<Output = ()>) {
+    pub fn with_client(interface: &str, io_qty: u8) -> (Self, impl Future<Output = ()> + '_) {
         let (tx, rx) = channel(100);
         (Self::new(tx, io_qty), client(interface, rx))
     }
@@ -125,18 +125,23 @@ pub async fn client(interface: &str, mut rx: Receiver<Message>) {
 
         match rx.try_recv() {
             Ok(msg) => {
-                let mut slave = group.slave(&client, msg.card_id).unwrap();
+                let card_id = msg.card_id;
+                let mut slave = group.slave(&client, card_id).unwrap();
                 let (i, o) = slave.io_raw_mut();
                 match msg.command {
                     Command::SetState(state) => {
+                        info!("SetState with new state: {state} called on EK1100 card: {card_id}");
                         o[0] = state;
                     }
                     Command::GetState(tx) => {
-                        tx.send(i[0]).unwrap();
+                        let state = i[0];
+                        info!("GetState with response: {state} called on EK1100 card: {card_id}");
+                        tx.send(state).unwrap();
                     }
                 }
             }
             Err(TryRecvError::Disconnected) => {
+                info!("All senders dropped, Disconnecting");
                 break;
             }
             Err(_) => {}
