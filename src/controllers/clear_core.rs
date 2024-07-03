@@ -97,25 +97,25 @@ impl Controller {
         (Controller::new(tx, motors), client(addr, rx))
     }
 
-    pub fn get_motor(&self, id: usize) -> Option<&ClearCoreMotor> {
-        self.motors.get(id)
+    pub fn get_motor(&self, id: usize) -> &ClearCoreMotor {
+        &self.motors[id]
     }
 
-    pub fn get_digital_inputs(&self, id: usize) -> Option<&Input> {
-        self.digital_inputs.get(id)
+    pub fn get_digital_inputs(&self, id: usize) -> &Input {
+        &self.digital_inputs[id]
     }
 
-    pub fn get_analog_input(&self, id: usize) -> Option<&AnalogInput> {
-        self.analog_inputs.get(id)
+    pub fn get_analog_input(&self, id: usize) -> &AnalogInput {
+        &self.analog_inputs[id]
     }
 
-    pub fn get_output(&self, id: usize) -> Option<&Output> {
-        self.outputs.get(id)
+    pub fn get_output(&self, id: usize) -> &Output {
+        &self.outputs[id]
     }
     
-    pub fn get_h_bridge(&self, id: usize) -> Option<&HBridge> {
+    pub fn get_h_bridge(&self, id: usize) -> &HBridge {
         let idx = id - 4;
-        self.h_bridges.get(idx)
+        &self.h_bridges[idx]
     }
 }
 
