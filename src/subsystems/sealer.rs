@@ -1,9 +1,10 @@
-use crate::components::clear_core_io::{Output, OutputState};
+use crate::components::clear_core_io::DigitalOutput;
 use crate::controllers::ek1100_io::IOCard;
 use std::time::Duration;
+use crate::components::Output;
 
 pub struct Sealer {
-    heater:  Output,
+    heater: DigitalOutput,
     actuator_io: IOCard,
     extend_id: u8,
     retract_id: u8,
@@ -11,7 +12,7 @@ pub struct Sealer {
 
 impl Sealer {
     pub fn new(
-        heater:  Output,
+        heater: DigitalOutput,
         actuator_io: IOCard,
         extend_id: u8,
         retract_id: u8,
@@ -37,9 +38,9 @@ impl Sealer {
     }
 
     async fn heat(&self, dwell_time: Duration) {
-        self.heater.set_state(OutputState::On).await;
+        self.heater.set_state(true).await;
         tokio::time::sleep(dwell_time).await;
-        self.heater.set_state(OutputState::Off).await;
+        self.heater.set_state(false).await;
     }
 
     pub async fn seal(&mut self) {

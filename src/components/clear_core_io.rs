@@ -2,6 +2,8 @@ use crate::components::send_recv::SendRecv;
 use crate::controllers::clear_core::{Message, CR, STX};
 use crate::util::utils::{ascii_to_int, int_to_byte, num_to_bytes};
 use tokio::sync::mpsc::Sender;
+use crate::components::Output;
+
 
 pub const CLEAR_CORE_H_BRIDGE_MAX: i16 = 32760;
 #[derive(Clone)]
@@ -56,13 +58,13 @@ pub enum OutputState {
     On,
 }
 #[derive(Clone)]
-pub struct Output {
+pub struct DigitalOutput {
     on_cmd: [u8; 9],
     off_cmd: [u8; 9],
     drive_sender: Sender<Message>,
 }
 
-impl Output {
+impl DigitalOutput {
     pub fn new(id: u8, drive_sender: Sender<Message>) -> Self {
         let on_cmd = [STX, b'O', int_to_byte(id), b'3', b'2', b'7', b'0', b'0', CR];
         let off_cmd = [STX, b'O', int_to_byte(id), b'0', CR, 0, 0, 0, 0];
@@ -73,20 +75,21 @@ impl Output {
         }
     }
 
-    fn command_builder(&self, state: OutputState) -> [u8; 9] {
-        match state {
-            OutputState::Off => self.off_cmd,
-            OutputState::On => self.on_cmd,
+    fn command_builder(&self, state: bool) -> [u8; 9] {
+        if state {
+            self.on_cmd
+        } else {
+            self.off_cmd
         }
-    }
-
-    pub async fn set_state(&self, state: OutputState) -> isize {
-        let res = self.write(self.command_builder(state).as_slice()).await;
-        ascii_to_int(&res[3..])
+  
     }
 }
-
-impl SendRecv for Output {
+impl Output for DigitalOutput {
+    async fn set_state(&self, state: bool) {
+        self.write(self.command_builder(state).as_slice()).await;
+    }
+}
+impl SendRecv for DigitalOutput {
     fn get_sender(&self) -> &Sender<Message> {
         &self.drive_sender
     }

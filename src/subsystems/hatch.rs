@@ -1,18 +1,22 @@
-use crate::components::clear_core_io::HBridgeState;
-use crate::subsystems::linear_actuator::LinearActuator;
+use crate::components::clear_core_io::{AnalogInput, HBridgeState, DigitalOutput};
+use crate::subsystems::linear_actuator::{LinearActuator, RelayHBridge};
 use std::time::Duration;
 use tokio::time::Instant;
 
-pub struct Hatch<T: LinearActuator> {
-    actuator: T,
+pub struct Hatch {
+    actuator: RelayHBridge,
     timeout: Duration,
 }
 
-impl<T: LinearActuator> Hatch<T> {
-    pub fn new(actuator: T, timeout: Duration) -> Self {
+impl Hatch {
+    pub fn new(actuator: RelayHBridge, timeout: Duration) -> Self {
         Self { actuator, timeout }
     }
-
+    
+    pub fn from_io(ch_a: DigitalOutput, ch_b: DigitalOutput, fb: AnalogInput) -> Self {
+        Self::new(RelayHBridge::new((ch_a, ch_b),fb), Duration::from_secs(4))
+    }
+    
     pub async fn get_position(&self) -> isize{
         self.actuator.get_feedback().await
     }
@@ -58,6 +62,7 @@ impl<T: LinearActuator> Hatch<T> {
         self.actuator.actuate(HBridgeState::Off).await;
     }
 }
+
 
 // #[tokio::test]
 // async fn open_all() {

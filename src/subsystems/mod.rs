@@ -4,3 +4,5 @@ pub mod hatch;
 pub mod linear_actuator;
 pub mod node;
 pub mod sealer;
+pub mod ingredient;
+pub mod dispenser;

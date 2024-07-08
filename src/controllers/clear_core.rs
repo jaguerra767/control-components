@@ -1,4 +1,4 @@
-use crate::components::clear_core_io::{AnalogInput, HBridge, Input, Output};
+use crate::components::clear_core_io::{AnalogInput, HBridge, Input, DigitalOutput};
 use crate::components::clear_core_motor::{ClearCoreMotor, Status};
 use crate::interface::tcp::client;
 use std::error::Error;
@@ -29,7 +29,7 @@ pub type Motors = Vec<ClearCoreMotor>;
 pub type Inputs = Vec<Input>;
 
 pub type AnalogInputs = Vec<AnalogInput>;
-pub type Outputs = Vec<Output>;
+pub type Outputs = Vec<DigitalOutput>;
 pub type HBridges = [HBridge;NO_HBRIDGE];
 
 pub struct MotorBuilder {
@@ -67,7 +67,7 @@ impl Controller {
             .map(|index| AnalogInput::new(index as u8, tx.clone()))
             .collect();
         let outputs = (0..NO_OUTPUTS)
-            .map(|index| Output::new(index as u8, tx.clone()))
+            .map(|index| DigitalOutput::new(index as u8, tx.clone()))
             .collect();
         
         let h_bridges = [
@@ -120,7 +120,7 @@ impl Controller {
     pub fn get_analog_inputs(&self) -> AnalogInputs {
         self.analog_inputs.clone()
     }
-    pub fn get_output(&self, id: usize) -> Output {
+    pub fn get_output(&self, id: usize) -> DigitalOutput {
         self.outputs[id].clone()
     }
     

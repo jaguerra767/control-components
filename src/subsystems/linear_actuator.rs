@@ -1,6 +1,7 @@
-use crate::components::clear_core_io::{AnalogInput, HBridge, HBridgeState, Output, OutputState};
+use crate::components::clear_core_io::{AnalogInput, HBridge, HBridgeState, DigitalOutput};
 pub use crate::controllers::clear_core::Message;
 use std::future::Future;
+use crate::components::Output;
 
 //TODO: Move this to a hatches module
 #[allow(unused)]
@@ -45,11 +46,11 @@ pub enum ActuatorCh {
 
 pub struct RelayHBridge {
     fb_pair: ( AnalogInput, Option< AnalogInput>),
-    output_pair: ( Output, Output),
+    output_pair: (DigitalOutput, DigitalOutput),
 }
 
 impl RelayHBridge {
-    pub fn new(outputs: (Output, Output), feedback:  AnalogInput) -> Self {
+    pub fn new(outputs: (DigitalOutput, DigitalOutput), feedback:  AnalogInput) -> Self {
         Self {
             fb_pair: (feedback, None),
             output_pair: outputs,
@@ -70,14 +71,14 @@ impl LinearActuator for RelayHBridge {
     async fn actuate(&self, power: HBridgeState){
         match power {
             HBridgeState::Pos => {
-                self.output_pair.0.set_state(OutputState::On).await;
+                self.output_pair.0.set_state(true).await;
             }
             HBridgeState::Neg => {
-                self.output_pair.1.set_state(OutputState::On).await;
+                self.output_pair.1.set_state(true).await;
             }
             HBridgeState::Off => {
-                self.output_pair.0.set_state(OutputState::Off).await;
-                self.output_pair.1.set_state(OutputState::Off).await;
+                self.output_pair.0.set_state(false).await;
+                self.output_pair.1.set_state(false).await;
             }
         }
     }

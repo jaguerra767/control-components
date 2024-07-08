@@ -1,18 +1,19 @@
 use crate::components::clear_core_motor::{ClearCoreMotor, Status};
-use std::error::Error;
 use std::time::Duration;
+use log::info;
 use tokio::sync::mpsc::Receiver;
 use tokio::sync::oneshot;
 
+pub struct GoToCmd{
+    pos: f64,
+    resp: oneshot::Sender<f64>
+}
 pub enum GantryCommand {
     GetPosition(oneshot::Sender<f64>),
-    GoTo(f64),
+    GoTo(GoToCmd),
 }
 
-pub async fn gantry(
-    motor: ClearCoreMotor,
-    mut rx: Receiver<GantryCommand>,
-) -> Result<(), Box<dyn Error + Send + Sync>> {
+pub async fn gantry(motor: ClearCoreMotor, mut rx: Receiver<GantryCommand>) {
     motor.set_acceleration(40.).await;
     motor.set_velocity(300.).await;
     motor.enable().await.unwrap();
@@ -20,17 +21,21 @@ pub async fn gantry(
         match cmd {
             GantryCommand::GetPosition(sender) => {
                 let pos = motor.get_position().await;
+                info!("Motor at pos: {pos}");
                 sender.send(pos).unwrap();
             }
-            GantryCommand::GoTo(pos) => {
-                motor.absolute_move(pos).await.unwrap();
+            GantryCommand::GoTo(cmd) => {
+                motor.absolute_move(cmd.pos).await.unwrap();
+                info!("Motor absolute move commanded: {}", cmd.pos);
                 while motor.get_status().await == Status::Moving {
-                    tokio::time::sleep(Duration::from_secs_f64(1.0)).await;
+                    tokio::time::sleep(Duration::from_secs_f64(0.25)).await;
                 }
+                let pos = motor.get_position().await;
+                info!("Motor absolute move complete, current pos: {pos}");
+                cmd.resp.send(pos).unwrap()
             }
         }
     }
-    Ok(())
 }
 
 // #[tokio::test]
