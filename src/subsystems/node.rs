@@ -101,9 +101,7 @@ impl Node {
                                           // motor_speed: f64,
     ) -> (Scale, Vec<Duration>, Vec<f64>) {
         // Prime conveyor
-        self.motor
-            .set_velocity(2. * parameters.motor_speed)
-            .await;
+        self.motor.set_velocity(2. * parameters.motor_speed).await;
 
         self.motor.relative_move(-10000.).await.unwrap();
 
@@ -132,9 +130,7 @@ impl Node {
         let mut times: Vec<Duration> = Vec::new();
         let mut weights: Vec<f64> = Vec::new();
 
-        self.motor
-            .set_velocity(parameters.motor_speed)
-            .await;
+        self.motor.set_velocity(parameters.motor_speed).await;
         self.motor
             .relative_move(10000.)
             .await
@@ -167,9 +163,7 @@ impl Node {
                 let err = (curr_weight - target_weight) / parameters.serving_weight.unwrap();
                 let new_motor_speed = err * parameters.motor_speed;
                 if new_motor_speed >= 0.1 {
-                    self.motor
-                        .set_velocity(new_motor_speed)
-                        .await;
+                    self.motor.set_velocity(new_motor_speed).await;
                 }
                 self.motor
                     .relative_move(10000.0)
@@ -203,9 +197,7 @@ impl Node {
         // Data tracking
         let mut times = Vec::new();
         let mut weights = Vec::new();
-        self.motor
-            .set_velocity(parameters.motor_speed)
-            .await;
+        self.motor.set_velocity(parameters.motor_speed).await;
 
         self.motor
             .relative_move(10000.0)

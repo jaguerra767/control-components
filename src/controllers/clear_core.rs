@@ -1,9 +1,8 @@
-use crate::components::clear_core_io::{AnalogInput, HBridge, Input, DigitalOutput};
+use crate::components::clear_core_io::{AnalogInput, DigitalInput, DigitalOutput, HBridge};
 use crate::components::clear_core_motor::{ClearCoreMotor, Status};
 use crate::interface::tcp::client;
 use std::error::Error;
 use std::future::Future;
-use log::{error, info};
 use tokio::net::ToSocketAddrs;
 use tokio::sync::mpsc::{channel, Sender};
 use tokio::sync::oneshot;
@@ -18,7 +17,6 @@ const NO_ANALOG_INPUTS: usize = 4;
 const NO_OUTPUTS: usize = 6;
 const NO_HBRIDGE: usize = 2;
 
-
 pub struct Message {
     pub buffer: Vec<u8>,
     pub response: oneshot::Sender<Vec<u8>>,
@@ -26,11 +24,11 @@ pub struct Message {
 
 //TODO: Change to arrays using array::from_fn
 pub type Motors = Vec<ClearCoreMotor>;
-pub type Inputs = Vec<Input>;
+pub type Inputs = Vec<DigitalInput>;
 
 pub type AnalogInputs = Vec<AnalogInput>;
 pub type Outputs = Vec<DigitalOutput>;
-pub type HBridges = [HBridge;NO_HBRIDGE];
+pub type HBridges = [HBridge; NO_HBRIDGE];
 
 pub struct MotorBuilder {
     pub id: u8,
@@ -46,7 +44,7 @@ pub struct Controller {
     digital_inputs: Inputs,
     analog_inputs: AnalogInputs,
     outputs: Outputs,
-    h_bridges: HBridges
+    h_bridges: HBridges,
 }
 
 impl Controller {
@@ -61,7 +59,7 @@ impl Controller {
             .map(|motor| ClearCoreMotor::new(motor.id, motor.scale, tx.clone()))
             .collect();
         let digital_inputs = (0..NO_DIGITAL_INPUTS)
-            .map(|index| Input::new(index as u8, tx.clone()))
+            .map(|index| DigitalInput::new(index as u8, tx.clone()))
             .collect();
         let analog_inputs = (0..NO_ANALOG_INPUTS)
             .map(|index| AnalogInput::new(index as u8, tx.clone()))
@@ -69,18 +67,18 @@ impl Controller {
         let outputs = (0..NO_OUTPUTS)
             .map(|index| DigitalOutput::new(index as u8, tx.clone()))
             .collect();
-        
+
         let h_bridges = [
-            HBridge::new(4, 32700, tx.clone()), 
-            HBridge::new(5, 32700, tx.clone())
+            HBridge::new(4, 32700, tx.clone()),
+            HBridge::new(5, 32700, tx.clone()),
         ];
-        
+
         Controller {
             motors,
             digital_inputs,
             analog_inputs,
             outputs,
-            h_bridges
+            h_bridges,
         }
     }
 
@@ -98,23 +96,21 @@ impl Controller {
     pub fn get_motor(&self, id: usize) -> ClearCoreMotor {
         self.motors[id].clone()
     }
-    
+
     pub fn get_motors(&self) -> Motors {
         self.motors.clone()
     }
-    
 
-    pub fn get_digital_input(&self, id: usize) -> Input {
+    pub fn get_digital_input(&self, id: usize) -> DigitalInput {
         self.digital_inputs[id].clone()
     }
-    
+
     pub fn get_digital_inputs(&self) -> Inputs {
         self.digital_inputs.clone()
     }
 
     pub fn get_analog_input(&self, id: usize) -> AnalogInput {
         self.analog_inputs[id].clone()
-        
     }
 
     pub fn get_analog_inputs(&self) -> AnalogInputs {
@@ -123,16 +119,16 @@ impl Controller {
     pub fn get_output(&self, id: usize) -> DigitalOutput {
         self.outputs[id].clone()
     }
-    
+
     pub fn get_outputs(&self) -> Outputs {
         self.outputs.clone()
     }
-    
+
     pub fn get_h_bridge(&self, id: usize) -> HBridge {
         let idx = id - 4;
         self.h_bridges[idx].clone()
     }
-    
+
     pub fn get_h_bridges(&self) -> HBridges {
         self.h_bridges.clone()
     }
@@ -142,9 +138,9 @@ pub async fn get_all_motor_states(controller: Controller) -> Vec<Status> {
     let mut statuses = Vec::with_capacity(controller.motors.len());
     let mut set = JoinSet::new();
     let motors = controller.get_motors();
-    motors.into_iter().for_each(|motor|{
+    motors.into_iter().for_each(|motor| {
         let motor = motor.clone();
-        set.spawn( async move { motor.get_status().await});
+        set.spawn(async move { motor.get_status().await });
     });
 
     while let Some(result) = set.join_next().await {
@@ -152,7 +148,6 @@ pub async fn get_all_motor_states(controller: Controller) -> Vec<Status> {
     }
     statuses
 }
-
 
 #[tokio::test]
 async fn test_controller() {
@@ -190,14 +185,15 @@ async fn test_controller() {
 async fn test_controller_with_client() {
     use env_logger::Env;
     use std::net::SocketAddr;
+    use std::sync::atomic::AtomicBool;
     use std::sync::Arc;
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
     use tokio::join;
     use tokio::net::TcpListener;
     use tokio::sync::Mutex;
-    use std::sync::atomic::AtomicBool;
     use tokio::time::{sleep, Duration};
-    
+    use log::{error, info};
+
     env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
     //We need this MotorBuilder struct to inject the motor scale into the controller, the id part is
     //Kind of unnecessary, but it might be valuable for having named ids in ryo-os
@@ -231,19 +227,17 @@ async fn test_controller_with_client() {
     let cc1 = Arc::new(Mutex::from(controller));
     let task_1_cc_1 = cc1.clone();
 
-   
-    
     //Tasks that do stuff use a reference to controller
     let controller_task_1 = tokio::spawn(async move {
         loop {
-                let motor = task_1_cc_1.lock().await.get_motor(0);
-                if let Err(e) = motor.enable().await {
-                    error!("Motor failed to enable {:?}",e);
-                }
-                sleep(Duration::from_secs(1)).await;
+            let motor = task_1_cc_1.lock().await.get_motor(0);
+            if let Err(e) = motor.enable().await {
+                error!("Motor failed to enable {:?}", e);
+            }
+            sleep(Duration::from_secs(1)).await;
         }
     });
-    
+
     let controller_task_2 = tokio::spawn(async move {
         loop {
             {
@@ -251,7 +245,6 @@ async fn test_controller_with_client() {
                 info!("Lock Acquired from input task");
                 let state = input.get_state().await;
                 info!("{state}");
-                
             }
             tokio::time::sleep(Duration::from_secs(1)).await;
         }

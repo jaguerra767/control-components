@@ -1,4 +1,4 @@
-use crate::components::clear_core_io::{AnalogInput, HBridge, HBridgeState, DigitalOutput};
+use crate::components::clear_core_io::{AnalogInput, DigitalOutput, HBridge, HBridgeState};
 pub use crate::controllers::clear_core::Message;
 use crate::controllers::ek1100_io::IOCard;
 
@@ -10,33 +10,36 @@ const ACTUONIX_LA_MAX_STROKE: isize = 34000;
 const ACTUONIX_LA_MIN_STROKE: isize = 400;
 //TODO: Move this to a hatches module
 
-
 pub struct SimpleLinearActuator {
     output: HBridge,
-    feedback:  Option<AnalogInput>,
+    feedback: Option<AnalogInput>,
 }
 
-impl  SimpleLinearActuator {
-
+impl SimpleLinearActuator {
     pub fn new(output: HBridge) -> Self {
-        Self { output, feedback: None }
+        Self {
+            output,
+            feedback: None,
+        }
     }
-    
+
     pub fn with_feedback(output: HBridge, feedback: AnalogInput) -> Self {
-        Self {output, feedback: Some(feedback)}
+        Self {
+            output,
+            feedback: Some(feedback),
+        }
     }
-    async fn get_feedback(&self) -> Option<isize> {
+    pub async fn get_feedback(&self) -> Option<isize> {
         if let Some(fb) = self.feedback.as_ref() {
             Some(fb.get_state().await)
         } else {
             None
         }
     }
-    async fn actuate(&self, state: HBridgeState) {
+    pub async fn actuate(&self, state: HBridgeState) {
         self.output.set_state(state).await
     }
 }
-
 
 #[derive(Clone, Copy)]
 pub enum ActuatorCh {
@@ -44,9 +47,9 @@ pub enum ActuatorCh {
     Chb,
 }
 
-pub enum Output{
+pub enum Output {
     EtherCat(IOCard, usize, u8),
-    ClearCore(DigitalOutput)
+    ClearCore(DigitalOutput),
 }
 
 impl Output {
@@ -63,28 +66,26 @@ impl Output {
 }
 
 pub struct RelayHBridge {
-    fb_pair: ( AnalogInput, Option<AnalogInput>),
+    fb_pair: (AnalogInput, Option<AnalogInput>),
     output_pair: (Output, Output),
 }
 
-
-impl  RelayHBridge {
-
-    pub fn new(outputs: (Output, Output), feedback:  AnalogInput) -> Self {
+impl RelayHBridge {
+    pub fn new(outputs: (Output, Output), feedback: AnalogInput) -> Self {
         Self {
             fb_pair: (feedback, None),
             output_pair: outputs,
         }
     }
-    
+
     pub fn with_dual_fb(outputs: (Output, Output), feedback: (AnalogInput, AnalogInput)) -> Self {
         Self {
             fb_pair: (feedback.0, Some(feedback.1)),
-            output_pair: outputs
+            output_pair: outputs,
         }
     }
-   
-    async fn get_feedback(&self) -> isize {
+
+    pub(crate) async fn get_feedback(&self) -> isize {
         let mut position = self.fb_pair.0.get_state().await;
         if let Some(fb) = &self.fb_pair.1 {
             let pos_b = fb.get_state().await;
@@ -93,7 +94,7 @@ impl  RelayHBridge {
         position
     }
 
-    async fn actuate(&mut self, power: HBridgeState){
+    pub(crate) async fn actuate(&mut self, power: HBridgeState) {
         match power {
             HBridgeState::Pos => {
                 self.output_pair.0.set_state(true).await;

@@ -3,8 +3,6 @@ use crate::controllers::clear_core::{Message, CR, STX};
 use crate::util::utils::{ascii_to_int, int_to_byte, num_to_bytes};
 use tokio::sync::mpsc::Sender;
 
-
-
 pub const CLEAR_CORE_H_BRIDGE_MAX: i16 = 32760;
 #[derive(Clone)]
 pub struct DigitalInput {
@@ -52,7 +50,6 @@ impl SendRecv for AnalogInput {
         &self.drive_sender
     }
 }
-
 
 #[derive(Clone)]
 pub struct DigitalOutput {

@@ -1,6 +1,6 @@
-use crate::components::clear_core_io::{HBridgeState, Input};
+use crate::components::clear_core_io::{DigitalInput, HBridgeState};
 use crate::components::clear_core_motor::{ClearCoreMotor, Status};
-use crate::subsystems::linear_actuator::{LinearActuator, SimpleLinearActuator};
+use crate::subsystems::linear_actuator::SimpleLinearActuator;
 use std::error::Error;
 use std::time::Duration;
 use tokio::time::sleep;
@@ -12,11 +12,7 @@ pub struct BagGripper {
 }
 
 impl BagGripper {
-    pub fn new(
-        motor: ClearCoreMotor,
-        actuator: SimpleLinearActuator,
-        positions: Vec<f64>,
-    ) -> Self {
+    pub fn new(motor: ClearCoreMotor, actuator: SimpleLinearActuator, positions: Vec<f64>) -> Self {
         Self {
             motor,
             actuator,
@@ -24,21 +20,19 @@ impl BagGripper {
         }
     }
 
-    pub async fn open(&self){
+    pub async fn open(&mut self) {
         self.actuator.actuate(HBridgeState::Pos).await;
         sleep(Duration::from_secs_f64(2.0)).await;
     }
 
-    pub async fn close(&self) {
+    pub async fn close(&mut self) {
         self.actuator.actuate(HBridgeState::Neg).await;
         sleep(Duration::from_secs_f64(2.0)).await;
     }
     pub async fn rip_bag(&self) -> Result<(), Box<dyn Error>> {
         for pos in self.positions.as_slice() {
             self.motor.relative_move(*pos).await.unwrap();
-            self.motor
-                .wait_for_move(Duration::from_millis(150))
-                .await
+            self.motor.wait_for_move(Duration::from_millis(150)).await
         }
         Ok(())
     }
@@ -46,16 +40,19 @@ impl BagGripper {
 
 pub struct BagDispenser {
     motor: ClearCoreMotor,
-    photo_eye: Input,
+    photo_eye: DigitalInput,
 }
 
 impl BagDispenser {
-    pub fn new(motor: ClearCoreMotor, photo_eye: Input) -> Self {
+    pub fn new(motor: ClearCoreMotor, photo_eye: DigitalInput) -> Self {
         Self { motor, photo_eye }
     }
     pub async fn dispense(&self) -> Result<(), Box<dyn Error>> {
         self.motor.set_velocity(3.0).await;
-        self.motor.relative_move(1000.0).await.expect("TODO: panic message");
+        self.motor
+            .relative_move(1000.0)
+            .await
+            .expect("TODO: panic message");
         while !self.photo_eye.get_state().await {
             sleep(Duration::from_millis(100)).await;
         }
@@ -71,8 +68,6 @@ impl BagDispenser {
         Ok(())
     }
 }
-
-
 
 // #[tokio::test]
 // async fn test_bag_dispense() {

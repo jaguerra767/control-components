@@ -178,13 +178,13 @@ async fn test_ek1100() {
     tokio::time::sleep(Duration::from_secs(1)).await;
     let task = tokio::spawn(async move {
         info!("Hello from tasky task");
-            let mut  io = controller.get_io(0); 
-            for i in 0..8 {
-                io.set_state(1, i, true).await;
-                tokio::time::sleep(Duration::from_secs(1)).await;
-                io.set_state(1, i, false).await;
-                tokio::time::sleep(Duration::from_secs(1)).await;
-            }
+        let mut io = controller.get_io(0);
+        for i in 0..8 {
+            io.set_state(1, i, true).await;
+            tokio::time::sleep(Duration::from_secs(1)).await;
+            io.set_state(1, i, false).await;
+            tokio::time::sleep(Duration::from_secs(1)).await;
+        }
     });
 
     let _ = join!(client_handler, task);

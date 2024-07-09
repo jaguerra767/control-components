@@ -1,5 +1,5 @@
-use crate::components::clear_core_io::{AnalogInput, HBridgeState, DigitalOutput};
-use crate::subsystems::linear_actuator::{LinearActuator, RelayHBridge};
+use crate::components::clear_core_io::{AnalogInput, HBridgeState};
+use crate::subsystems::linear_actuator::{Output, RelayHBridge};
 use std::time::Duration;
 use tokio::time::Instant;
 
@@ -12,22 +12,22 @@ impl Hatch {
     pub fn new(actuator: RelayHBridge, timeout: Duration) -> Self {
         Self { actuator, timeout }
     }
-    
-    pub fn from_io(ch_a: DigitalOutput, ch_b: DigitalOutput, fb: AnalogInput) -> Self {
-        Self::new(RelayHBridge::new((ch_a, ch_b),fb), Duration::from_secs(4))
+
+    pub fn from_io(ch_a: Output, ch_b: Output, fb: AnalogInput) -> Self {
+        Self::new(RelayHBridge::new((ch_a, ch_b), fb), Duration::from_secs(4))
     }
-    
-    pub async fn get_position(&self) -> isize{
+
+    pub async fn get_position(&self) -> isize {
         self.actuator.get_feedback().await
     }
 
-    pub async fn timed_open(&self, time: Duration) {
+    pub async fn timed_open(&mut self, time: Duration) {
         self.actuator.actuate(HBridgeState::Pos).await;
         tokio::time::sleep(time).await;
         self.actuator.actuate(HBridgeState::Off).await;
     }
 
-    pub async fn open(&self, set_point: isize) {
+    pub async fn open(&mut self, set_point: isize) {
         self.actuator.actuate(HBridgeState::Pos).await;
         let star_time = Instant::now();
         while self.actuator.get_feedback().await >= set_point {
@@ -39,16 +39,15 @@ impl Hatch {
             }
         }
         self.actuator.actuate(HBridgeState::Off).await;
-
     }
 
-    pub async fn timed_close(&self, time: Duration) {
+    pub async fn timed_close(&mut self, time: Duration) {
         self.actuator.actuate(HBridgeState::Neg).await;
         tokio::time::sleep(time).await;
         self.actuator.actuate(HBridgeState::Off).await;
     }
 
-    pub async fn close(&self, set_point: isize) {
+    pub async fn close(&mut self, set_point: isize) {
         self.actuator.actuate(HBridgeState::Neg).await;
         let star_time = Instant::now();
         while self.actuator.get_feedback().await <= set_point {
@@ -62,7 +61,6 @@ impl Hatch {
         self.actuator.actuate(HBridgeState::Off).await;
     }
 }
-
 
 // #[tokio::test]
 // async fn open_all() {

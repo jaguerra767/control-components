@@ -1,17 +1,16 @@
 use crate::components::load_cell::LoadCell;
 use linalg::MatrixError;
-use std::error::Error;
-use std::{array, io};
-use std::future::Future;
-use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::thread::sleep;
 use log::info;
-use tokio::time::{Duration, Instant, MissedTickBehavior};
-use tokio::sync::mpsc::{Receiver, Sender, channel};
+use std::error::Error;
+use std::future::Future;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
+use std::thread::sleep;
+use std::{array, io};
 use tokio::sync::mpsc::error::TryRecvError;
+use tokio::sync::mpsc::{channel, Receiver, Sender};
 use tokio::sync::oneshot;
-
+use tokio::time::{Duration, Instant, MissedTickBehavior};
 
 pub type DiagnoseResult = Result<(Scale, Vec<Duration>, Vec<f64>), Box<dyn Error>>;
 pub struct Scale {
@@ -22,11 +21,15 @@ pub struct Scale {
 
 impl Scale {
     pub fn new(phidget_id: i32) -> Self {
-        let cells: [LoadCell; 4] = array::from_fn(|i|{LoadCell::new(phidget_id, i as i32)});
-        Self { cells, cell_coefficients: vec![1.; 4], tare_offset: 0., }
+        let cells: [LoadCell; 4] = array::from_fn(|i| LoadCell::new(phidget_id, i as i32));
+        Self {
+            cells,
+            cell_coefficients: vec![1.; 4],
+            tare_offset: 0.,
+        }
     }
-    
-    pub fn actor_tx_pair(phidget_id: i32) -> (Sender<ScaleCmd>, impl Future<Output = ()>){
+
+    pub fn actor_tx_pair(phidget_id: i32) -> (Sender<ScaleCmd>, impl Future<Output = ()>) {
         let (tx, rx) = channel(100);
         let scale = Self::new(phidget_id);
         (tx, actor(scale, rx))
@@ -98,7 +101,7 @@ impl Scale {
             if curr_time - start_time > time {
                 break;
             }
-            
+
             for (idx, cell) in scale.cells.iter().enumerate().take(scale.cells.len()) {
                 readings[idx].push(cell.get_reading().expect("Failed to get reading"))
             }
@@ -146,7 +149,7 @@ fn dot(vec1: Vec<f64>, vec2: Vec<f64>) -> f64 {
     sum
 }
 
-pub struct ScaleCmd(oneshot::Sender<f64>);
+pub struct ScaleCmd(pub oneshot::Sender<f64>);
 
 pub async fn actor(scale: Scale, mut receiver: Receiver<ScaleCmd>) {
     let mut scale = scale.connect().expect("Failed to connect LC");
@@ -156,28 +159,26 @@ pub async fn actor(scale: Scale, mut receiver: Receiver<ScaleCmd>) {
     let shutdown = Arc::new(AtomicBool::new(false));
     signal_hook::flag::register(signal_hook::consts::SIGINT, Arc::clone(&shutdown))
         .expect("Register hook");
-    
+
     loop {
         if shutdown.load(Ordering::Relaxed) {
             break;
         }
         let weight: f64;
-        (scale, weight) = tokio::task::spawn_blocking(move || {
-            Scale::live_weigh(scale).unwrap()
-        }).await.unwrap();
-        
+        (scale, weight) = tokio::task::spawn_blocking(move || Scale::live_weigh(scale).unwrap())
+            .await
+            .unwrap();
+
         match receiver.try_recv() {
             Ok(cmd) => {
                 info!("Read weight: {weight}");
-                cmd.0.send(weight).unwrap() 
+                cmd.0.send(weight).unwrap()
             }
             Err(TryRecvError::Disconnected) => {
                 info!("All senders dropped, Disconnecting");
                 break;
             }
-            Err(_) => {
-                
-            }
+            Err(_) => {}
         }
         tick_interval.tick().await;
     }

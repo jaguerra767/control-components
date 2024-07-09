@@ -1,12 +1,12 @@
 use crate::components::clear_core_motor::{ClearCoreMotor, Status};
-use std::time::Duration;
 use log::info;
+use std::time::Duration;
 use tokio::sync::mpsc::Receiver;
 use tokio::sync::oneshot;
 
-pub struct GoToCmd{
+pub struct GoToCmd {
     pos: f64,
-    resp: oneshot::Sender<f64>
+    resp: oneshot::Sender<f64>,
 }
 pub enum GantryCommand {
     GetPosition(oneshot::Sender<f64>),

@@ -1,10 +1,10 @@
 use crate::components::send_recv::SendRecv;
 use crate::subsystems::linear_actuator::Message;
 use crate::util::utils::{ascii_to_int, make_prefix, num_to_bytes};
+use log::error;
 use serde::Serialize;
 use std::result::Result;
 pub use std::time::Duration;
-use log::error;
 use tokio::sync::mpsc::Sender;
 
 const REPLY_IDX: usize = 3;
@@ -42,15 +42,15 @@ impl ClearCoreMotor {
     pub async fn enable(&self) -> Result<&Self, Status> {
         let enable_cmd = [2, b'M', self.id + 48, b'E', b'N', 13];
         let resp = self.write(enable_cmd.as_ref()).await;
-        if resp[REPLY_IDX] == SUCCESSFUL_REPLY{
-            Ok(self) 
+        if resp[REPLY_IDX] == SUCCESSFUL_REPLY {
+            Ok(self)
         } else {
             error!("Motor Faulted!");
             Err(Status::Faulted)
         }
     }
 
-    pub async fn disable(&self){
+    pub async fn disable(&self) {
         let enable_cmd = [2, b'M', self.id + 48, b'D', b'E', 13];
         self.write(enable_cmd.as_ref()).await;
     }
@@ -82,7 +82,7 @@ impl ClearCoreMotor {
             Ok(())
         } else {
             Err(self.get_status().await)
-        } 
+        }
     }
 
     pub async fn jog(&self, speed: f64) -> Result<(), Status> {
@@ -120,9 +120,9 @@ impl ClearCoreMotor {
         self.write(msg.as_slice()).await;
     }
 
-    pub async fn set_velocity(&self, mut velocity: f64){
+    pub async fn set_velocity(&self, mut velocity: f64) {
         if velocity < 0. {
-           velocity = 0.; 
+            velocity = 0.;
         }
         let vel = num_to_bytes((velocity * (self.scale as f64)).trunc() as isize);
         let mut msg: Vec<u8> = Vec::with_capacity(vel.len() + self.prefix.len() + 1);

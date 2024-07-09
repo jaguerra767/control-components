@@ -14,7 +14,10 @@ pub trait SendRecv {
                 buffer: buffer.to_vec(),
                 response: resp_tx,
             };
-            self.get_sender().send(msg).await.expect("Failed to send msg to client");
+            self.get_sender()
+                .send(msg)
+                .await
+                .expect("Failed to send msg to client");
             resp_rx.await.expect("No MSG from client")
         }
     }
