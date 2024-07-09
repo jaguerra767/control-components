@@ -2,17 +2,17 @@ use crate::components::send_recv::SendRecv;
 use crate::controllers::clear_core::{Message, CR, STX};
 use crate::util::utils::{ascii_to_int, int_to_byte, num_to_bytes};
 use tokio::sync::mpsc::Sender;
-use crate::components::Output;
+
 
 
 pub const CLEAR_CORE_H_BRIDGE_MAX: i16 = 32760;
 #[derive(Clone)]
-pub struct Input {
+pub struct DigitalInput {
     cmd: [u8; 4],
     drive_sender: Sender<Message>,
 }
 
-impl Input {
+impl DigitalInput {
     pub fn new(id: u8, drive_sender: Sender<Message>) -> Self {
         let cmd = [STX, b'I', int_to_byte(id), CR];
         Self { cmd, drive_sender }
@@ -24,7 +24,7 @@ impl Input {
     }
 }
 
-impl SendRecv for Input {
+impl SendRecv for DigitalInput {
     fn get_sender(&self) -> &Sender<Message> {
         &self.drive_sender
     }
@@ -53,10 +53,7 @@ impl SendRecv for AnalogInput {
     }
 }
 
-pub enum OutputState {
-    Off,
-    On,
-}
+
 #[derive(Clone)]
 pub struct DigitalOutput {
     on_cmd: [u8; 9],
@@ -81,14 +78,12 @@ impl DigitalOutput {
         } else {
             self.off_cmd
         }
-  
     }
-}
-impl Output for DigitalOutput {
-    async fn set_state(&self, state: bool) {
+    pub async fn set_state(&self, state: bool) {
         self.write(self.command_builder(state).as_slice()).await;
     }
 }
+
 impl SendRecv for DigitalOutput {
     fn get_sender(&self) -> &Sender<Message> {
         &self.drive_sender

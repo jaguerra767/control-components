@@ -1,7 +1,6 @@
 use crate::components::clear_core_io::{AnalogInput, HBridge, HBridgeState, DigitalOutput};
 pub use crate::controllers::clear_core::Message;
-use std::future::Future;
-use crate::components::Output;
+use crate::controllers::ek1100_io::IOCard;
 
 //TODO: Move this to a hatches module
 #[allow(unused)]
@@ -10,33 +9,34 @@ const ACTUONIX_LA_MAX_STROKE: isize = 34000;
 #[allow(unused)]
 const ACTUONIX_LA_MIN_STROKE: isize = 400;
 //TODO: Move this to a hatches module
-#[allow(unused)]
 
-pub trait LinearActuator {
-    fn get_feedback(&self) -> impl Future<Output = isize>;
-    fn actuate(&self, power: HBridgeState) -> impl Future<Output = ()>;
-}
 
 pub struct SimpleLinearActuator {
     output: HBridge,
-    feedback:  AnalogInput,
+    feedback:  Option<AnalogInput>,
 }
 
-impl LinearActuator for SimpleLinearActuator {
-    async fn get_feedback(&self) -> isize {
-        self.feedback.get_state().await
-    }
+impl  SimpleLinearActuator {
 
+    pub fn new(output: HBridge) -> Self {
+        Self { output, feedback: None }
+    }
+    
+    pub fn with_feedback(output: HBridge, feedback: AnalogInput) -> Self {
+        Self {output, feedback: Some(feedback)}
+    }
+    async fn get_feedback(&self) -> Option<isize> {
+        if let Some(fb) = self.feedback.as_ref() {
+            Some(fb.get_state().await)
+        } else {
+            None
+        }
+    }
     async fn actuate(&self, state: HBridgeState) {
         self.output.set_state(state).await
     }
 }
 
-impl SimpleLinearActuator {
-    pub fn new(output: HBridge, feedback: AnalogInput) -> Self {
-        Self { output, feedback }
-    }
-}
 
 #[derive(Clone, Copy)]
 pub enum ActuatorCh {
@@ -44,21 +44,46 @@ pub enum ActuatorCh {
     Chb,
 }
 
-pub struct RelayHBridge {
-    fb_pair: ( AnalogInput, Option< AnalogInput>),
-    output_pair: (DigitalOutput, DigitalOutput),
+pub enum Output{
+    EtherCat(IOCard, usize, u8),
+    ClearCore(DigitalOutput)
 }
 
-impl RelayHBridge {
-    pub fn new(outputs: (DigitalOutput, DigitalOutput), feedback:  AnalogInput) -> Self {
+impl Output {
+    pub async fn set_state(&mut self, state: bool) {
+        match self {
+            Output::EtherCat(io, slot, id) => {
+                io.set_state(*slot, *id, state).await;
+            }
+            Output::ClearCore(out) => {
+                out.set_state(state).await;
+            }
+        }
+    }
+}
+
+pub struct RelayHBridge {
+    fb_pair: ( AnalogInput, Option<AnalogInput>),
+    output_pair: (Output, Output),
+}
+
+
+impl  RelayHBridge {
+
+    pub fn new(outputs: (Output, Output), feedback:  AnalogInput) -> Self {
         Self {
             fb_pair: (feedback, None),
             output_pair: outputs,
         }
     }
-}
-
-impl LinearActuator for RelayHBridge {
+    
+    pub fn with_dual_fb(outputs: (Output, Output), feedback: (AnalogInput, AnalogInput)) -> Self {
+        Self {
+            fb_pair: (feedback.0, Some(feedback.1)),
+            output_pair: outputs
+        }
+    }
+   
     async fn get_feedback(&self) -> isize {
         let mut position = self.fb_pair.0.get_state().await;
         if let Some(fb) = &self.fb_pair.1 {
@@ -68,7 +93,7 @@ impl LinearActuator for RelayHBridge {
         position
     }
 
-    async fn actuate(&self, power: HBridgeState){
+    async fn actuate(&mut self, power: HBridgeState){
         match power {
             HBridgeState::Pos => {
                 self.output_pair.0.set_state(true).await;
