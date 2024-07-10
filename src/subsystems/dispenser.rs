@@ -10,11 +10,11 @@ use tokio::time::{Duration, Instant};
 #[derive(Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct Parameters {
-    motor_speed: f64,
-    sample_rate: f64,
-    cutoff_frequency: f64,
-    check_offset: f64,
-    stop_offset: f64,
+    pub motor_speed: f64,
+    pub sample_rate: f64,
+    pub cutoff_frequency: f64,
+    pub check_offset: f64,
+    pub stop_offset: f64,
 }
 #[derive(Deserialize, Debug, Clone)]
 pub struct WeightedDispense {
