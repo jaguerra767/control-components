@@ -177,9 +177,9 @@ impl ClearCoreMotor {
         self.write(clear_cmd.as_slice()).await;
     }
 
-    pub async fn wait_for_move(&self, sampling_rate: Duration) {
+    pub async fn wait_for_move(&self, interval: Duration) {
         while self.get_status().await == Status::Moving {
-            tokio::time::sleep(sampling_rate).await;
+            tokio::time::sleep(interval).await;
         }
     }
 }
