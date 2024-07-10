@@ -184,6 +184,7 @@ pub async fn actor(scale: Scale, mut receiver: Receiver<ScaleCmd>) -> Result<(),
         }
         tick_interval.tick().await;
     }
+    Ok(())
 }
 #[derive(Debug)]
 pub enum ScaleError {
