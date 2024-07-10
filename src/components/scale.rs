@@ -29,7 +29,9 @@ impl Scale {
         }
     }
 
-    pub fn actor_tx_pair(phidget_id: i32) -> (Sender<ScaleCmd>, impl Future<Output = ()>) {
+    pub fn actor_tx_pair(
+        phidget_id: i32
+    ) -> (Sender<ScaleCmd>,impl Future<Output = Result<(), Box<dyn Error + Send + Sync>>> ) {
         let (tx, rx) = channel(100);
         let scale = Self::new(phidget_id);
         (tx, actor(scale, rx))
@@ -151,7 +153,7 @@ fn dot(vec1: Vec<f64>, vec2: Vec<f64>) -> f64 {
 
 pub struct ScaleCmd(pub oneshot::Sender<f64>);
 
-pub async fn actor(scale: Scale, mut receiver: Receiver<ScaleCmd>) {
+pub async fn actor(scale: Scale, mut receiver: Receiver<ScaleCmd>) -> Result<(), Box<dyn Error + Send + Sync>> {
     let mut scale = scale.connect().expect("Failed to connect LC");
     info!("Load cell amplifier connection successful");
     let mut tick_interval = tokio::time::interval(Duration::from_millis(5));
