@@ -16,12 +16,12 @@ pub struct Parameters {
     check_offset: f64,
     stop_offset: f64,
 }
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Clone)]
 pub struct WeightedDispense {
     pub setpoint: f64,
     pub timeout: Duration,
 }
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub enum Setpoint {
     Weight(WeightedDispense),
