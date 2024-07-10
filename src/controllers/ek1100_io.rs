@@ -1,3 +1,4 @@
+use std::error::Error;
 use ethercrab::std::{ethercat_now, tx_rx_task};
 use ethercrab::{Client, ClientConfig, PduStorage, Timeouts};
 use log::info;
@@ -59,7 +60,9 @@ impl Controller {
         Self { io }
     }
 
-    pub fn with_client(interface: &str, io_qty: u8) -> (Self, impl Future<Output = ()> + '_) {
+    pub fn with_client(
+        interface: &'static str, io_qty: u8
+    ) -> (Self, impl Future<Output = Result<(), Box<dyn Error + Send + Sync>>>) {
         let (tx, rx) = channel(100);
         (Self::new(tx, io_qty), client(interface, rx))
     }
@@ -69,7 +72,7 @@ impl Controller {
     }
 }
 
-pub async fn client(interface: &str, mut rx: Receiver<Message>) {
+pub async fn client(interface: &str, mut rx: Receiver<Message>) -> Result<(), Box<dyn Error + Send + Sync>> {
     println!("Hello from client");
     let (pdu_tx, pdu_rx, pdu_loop) = PDU_STORAGE
         .try_split()
@@ -161,6 +164,7 @@ pub async fn client(interface: &str, mut rx: Receiver<Message>) {
     let _group = group.into_init(&client).await.expect("PRE-OP -> INIT");
 
     info!("PRE-OP -> INIT, shutdown complete");
+    Ok(())
 }
 
 #[tokio::test]
