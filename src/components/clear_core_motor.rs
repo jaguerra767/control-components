@@ -9,6 +9,7 @@ use tokio::sync::mpsc::Sender;
 
 const REPLY_IDX: usize = 3;
 const SUCCESSFUL_REPLY: u8 = b'_';
+const FAILED_REPLY: u8 = b'?';
 
 #[derive(Debug, PartialOrd, PartialEq, Serialize)]
 pub enum Status {
@@ -38,15 +39,23 @@ impl ClearCoreMotor {
             drive_sender,
         }
     }
+    
+    async fn check_reply(&self, reply: &[u8]) -> Result<(), Status> {
+        if reply[REPLY_IDX] == FAILED_REPLY {
+            error!("Response from motor controller: {:?}", reply);
+            Err(self.get_status().await)
+        } else {
+            Ok(())
+        }
+    }
 
     pub async fn enable(&self) -> Result<&Self, Status> {
         let enable_cmd = [2, b'M', self.id + 48, b'E', b'N', 13];
         let resp = self.write(enable_cmd.as_ref()).await;
-        if resp[REPLY_IDX] == SUCCESSFUL_REPLY {
-            Ok(self)
+        if let Err(err) = self.check_reply(resp.as_slice()).await {
+            Err(err)
         } else {
-            error!("Response from motor controller: {:?}", resp);
-            Err(self.get_status().await)
+            Ok(self)
         }
     }
 
@@ -63,12 +72,7 @@ impl ClearCoreMotor {
         msg.extend_from_slice(position.as_slice());
         msg.push(13);
         let resp = self.write(msg.as_slice()).await;
-        if resp[REPLY_IDX] == SUCCESSFUL_REPLY {
-            Ok(())
-        } else {
-            error!("Response from motor controller: {:?}", resp);
-            Err(self.get_status().await)
-        }
+        self.check_reply(&resp).await
     }
 
     pub async fn relative_move(&self, position: f64) -> Result<(), Status> {
@@ -79,12 +83,7 @@ impl ClearCoreMotor {
         msg.extend_from_slice(position.as_slice());
         msg.push(13);
         let resp = self.write(msg.as_slice()).await;
-        if resp[REPLY_IDX] == SUCCESSFUL_REPLY {
-            Ok(())
-        } else {
-            error!("Response from motor controller: {:?}", resp);
-            Err(self.get_status().await)
-        }
+        self.check_reply(&resp).await
     }
 
     pub async fn jog(&self, speed: f64) -> Result<(), Status> {
@@ -95,12 +94,7 @@ impl ClearCoreMotor {
         msg.extend_from_slice(speed.as_slice());
         msg.push(13);
         let resp = self.write(msg.as_slice()).await;
-        if resp[REPLY_IDX] == SUCCESSFUL_REPLY {
-            Ok(())
-        } else {
-            error!("Response from motor controller: {:?}", resp);
-            Err(self.get_status().await)
-        }
+        self.check_reply(&resp).await
     }
 
     pub async fn abrupt_stop(&self) {
