@@ -1,4 +1,6 @@
 use std::fmt::Debug;
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use log::{error, info};
 use crate::components::clear_core_motor::ClearCoreMotor;
 use crate::components::scale::ScaleCmd;
@@ -141,10 +143,18 @@ impl Dispenser {
                 self.motor.relative_move(-10.).await.expect("Motor faulted");
                 tokio::time::sleep(Duration::from_secs(3)).await;
                 self.motor.relative_move(1000.).await.expect("Motor faulted");
-              
+
+                let shutdown = Arc::new(AtomicBool::new(false));
+                signal_hook::flag::register(signal_hook::consts::SIGINT, Arc::clone(&shutdown))
+                    .expect("Register hook");
                 //This while keep going while either final weight is none or while final weight is 
                 // not at setpoint
                 while self.check_final_weight(final_weight, target_weight) {
+
+                    if shutdown.load(Ordering::Relaxed) {
+                        break;
+                    }
+                    
                     if self.at_setpoint(curr_weight, target_weight).is_some() {
                         self.motor.abrupt_stop().await;
                         let weight = self.get_median_weight(150, self.parameters.sample_rate).await;
