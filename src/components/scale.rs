@@ -31,12 +31,9 @@ impl Scale {
         }
     }
 
-    pub fn actor_tx_pair(
-        phidget_id: i32
-    ) -> (Sender<ScaleCmd>,impl Future<Output = Result<(), Box<dyn Error + Send + Sync>>> ) {
+    pub fn actor_tx_pair(self) -> (Sender<ScaleCmd>,impl Future<Output = Result<(), Box<dyn Error + Send + Sync>>> ) {
         let (tx, rx) = channel(100);
-        let scale = Self::new(phidget_id);
-        (tx, actor(scale, rx))
+        (tx, actor(self, rx))
     }
 
     pub fn connect(mut self) -> Result<Self, Box<dyn Error>> {
