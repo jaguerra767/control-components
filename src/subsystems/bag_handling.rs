@@ -50,7 +50,7 @@ impl BagDispenser {
     pub async fn dispense(&self) -> Result<(), Box<dyn Error>> {
         self.motor.set_velocity(3.0).await;
         let _ = self.motor
-            .relative_move(10.0)
+            .relative_move(100.0)
             .await;
         while !self.photo_eye.get_state().await {
             sleep(Duration::from_millis(100)).await;

@@ -80,11 +80,7 @@ pub async fn client(interface: &str, mut rx: Receiver<Message>) -> Result<(), Bo
 
     let client = Arc::new(Client::new(
         pdu_loop,
-        Timeouts {
-            wait_loop_delay: Duration::from_millis(2),
-            mailbox_response: Duration::from_millis(1000),
-            ..Default::default()
-        },
+        Timeouts::default(),
         ClientConfig::default(),
     ));
 
