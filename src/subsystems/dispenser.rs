@@ -16,6 +16,20 @@ pub struct Parameters {
     pub check_offset: f64,
     pub stop_offset: f64,
 }
+
+impl Default for Parameters {
+    fn default() -> Self {
+        Self { 
+            motor_speed: 0.3, 
+            sample_rate: 50.0, 
+            cutoff_frequency: 0.5, 
+            check_offset: 15.0, 
+            stop_offset: 7.0
+        }
+    }
+}
+
+
 #[derive(Deserialize, Debug, Clone)]
 pub struct WeightedDispense {
     pub setpoint: f64,
