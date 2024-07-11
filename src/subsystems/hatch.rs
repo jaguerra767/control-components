@@ -1,6 +1,7 @@
 use crate::components::clear_core_io::{AnalogInput, HBridgeState};
 use crate::subsystems::linear_actuator::{Output, RelayHBridge};
 use std::time::Duration;
+use log::info;
 use tokio::time::Instant;
 
 pub struct Hatch {
@@ -33,8 +34,7 @@ impl Hatch {
         while self.actuator.get_feedback().await >= set_point {
             let curr_time = Instant::now();
             if (curr_time - star_time) > self.timeout {
-                //TODO: Add some proper error handling
-                println!("Timed Out!");
+                info!("Timed Out!");
                 break;
             }
         }
@@ -53,8 +53,7 @@ impl Hatch {
         while self.actuator.get_feedback().await <= set_point {
             let curr_time = Instant::now();
             if (curr_time - star_time) > self.timeout {
-                //TODO: Add some proper error handling
-                println!("Timed Out!");
+                info!("Timed Out!");
                 break;
             }
         }

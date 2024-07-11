@@ -45,8 +45,8 @@ impl ClearCoreMotor {
         if resp[REPLY_IDX] == SUCCESSFUL_REPLY {
             Ok(self)
         } else {
-            error!("Motor Faulted!");
-            Err(Status::Faulted)
+            error!("Response from motor controller: {:?}", resp);
+            Err(self.get_status().await)
         }
     }
 
@@ -62,10 +62,11 @@ impl ClearCoreMotor {
         msg.extend_from_slice(b"AM");
         msg.extend_from_slice(position.as_slice());
         msg.push(13);
-        let res = self.write(msg.as_slice()).await;
-        if res[REPLY_IDX] == SUCCESSFUL_REPLY {
+        let resp = self.write(msg.as_slice()).await;
+        if resp[REPLY_IDX] == SUCCESSFUL_REPLY {
             Ok(())
         } else {
+            error!("Response from motor controller: {:?}", resp);
             Err(self.get_status().await)
         }
     }
@@ -77,10 +78,11 @@ impl ClearCoreMotor {
         msg.extend_from_slice(b"RM");
         msg.extend_from_slice(position.as_slice());
         msg.push(13);
-        let res = self.write(msg.as_slice()).await;
-        if res[REPLY_IDX] == SUCCESSFUL_REPLY {
+        let resp = self.write(msg.as_slice()).await;
+        if resp[REPLY_IDX] == SUCCESSFUL_REPLY {
             Ok(())
         } else {
+            error!("Response from motor controller: {:?}", resp);
             Err(self.get_status().await)
         }
     }
@@ -92,10 +94,11 @@ impl ClearCoreMotor {
         msg.extend_from_slice(b"JG");
         msg.extend_from_slice(speed.as_slice());
         msg.push(13);
-        let res = self.write(msg.as_slice()).await;
-        if res[REPLY_IDX] == SUCCESSFUL_REPLY {
+        let resp = self.write(msg.as_slice()).await;
+        if resp[REPLY_IDX] == SUCCESSFUL_REPLY {
             Ok(())
         } else {
+            error!("Response from motor controller: {:?}", resp);
             Err(self.get_status().await)
         }
     }

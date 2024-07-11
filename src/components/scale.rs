@@ -17,6 +17,7 @@ pub struct Scale {
     cells: [LoadCell; 4],
     cell_coefficients: Vec<f64>,
     tare_offset: f64,
+    connected: bool
 }
 
 impl Scale {
@@ -26,6 +27,7 @@ impl Scale {
             cells,
             cell_coefficients: vec![1.; 4],
             tare_offset: 0.,
+            connected: false
         }
     }
 
@@ -41,6 +43,7 @@ impl Scale {
         for cell in 0..self.cells.len() {
             self.cells[cell].connect()?;
         }
+        self.connected = true;
         Ok(self)
     }
 
@@ -153,8 +156,16 @@ fn dot(vec1: Vec<f64>, vec2: Vec<f64>) -> f64 {
 
 pub struct ScaleCmd(pub oneshot::Sender<f64>);
 
-pub async fn actor(scale: Scale, mut receiver: Receiver<ScaleCmd>) -> Result<(), Box<dyn Error + Send + Sync>> {
-    let mut scale = scale.connect().expect("Failed to connect LC");
+pub async fn actor(mut scale: Scale, mut receiver: Receiver<ScaleCmd>) -> Result<(), Box<dyn Error + Send + Sync>> {
+    let time_start = Instant::now();
+    while !scale.connected {
+        info!("Waiting for scale connection...");
+        let current_time = Instant::now();
+        if current_time - time_start > Duration::from_secs(20) {
+            panic!("Failed to connect load cells");
+        }
+        tokio::time::sleep(Duration::from_secs(1)).await;
+    }
     info!("Load cell amplifier connection successful");
     let mut tick_interval = tokio::time::interval(Duration::from_millis(5));
     tick_interval.set_missed_tick_behavior(MissedTickBehavior::Skip);

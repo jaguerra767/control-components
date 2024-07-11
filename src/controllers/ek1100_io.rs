@@ -126,7 +126,7 @@ pub async fn client(interface: &str, mut rx: Receiver<Message>) -> Result<(), Bo
         match rx.try_recv() {
             Ok(msg) => {
                 let card_id = msg.card_id;
-                let mut slave = group.slave(&client, card_id).unwrap();
+                let mut slave = group.slave(&client, card_id).expect("Unable to get slave");
                 let (i, o) = slave.io_raw_mut();
                 match msg.command {
                     Command::SetState(state) => {
