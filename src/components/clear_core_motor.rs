@@ -39,10 +39,10 @@ impl ClearCoreMotor {
             drive_sender,
         }
     }
-    
+
     async fn check_reply(&self, reply: &[u8]) -> Result<(), Status> {
         if reply[REPLY_IDX] == FAILED_REPLY {
-            error!("Response from motor controller: {:?}", reply);
+            error!("Response from motor controller: {:?}", reply.to_ascii_lowercase());
             Err(self.get_status().await)
         } else {
             Ok(())
