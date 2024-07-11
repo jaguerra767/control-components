@@ -59,7 +59,7 @@ impl BagDispenser {
         Ok(())
     }
     pub async fn pull_back(&self) -> Result<(), Box<dyn Error>> {
-        self.motor.set_velocity(0.5).await;
+        self.motor.set_velocity(0.8).await;
         self.motor.relative_move(-4.5).await.unwrap();
         while self.motor.get_status().await == Status::Moving {
             sleep(Duration::from_millis(100)).await;
