@@ -85,7 +85,7 @@ impl RelayHBridge {
         }
     }
 
-    pub(crate) async fn get_feedback(&self) -> isize {
+    pub async fn get_feedback(&self) -> isize {
         let mut position = self.fb_pair.0.get_state().await;
         if let Some(fb) = &self.fb_pair.1 {
             let pos_b = fb.get_state().await;
@@ -94,7 +94,7 @@ impl RelayHBridge {
         position
     }
 
-    pub(crate) async fn actuate(&mut self, power: HBridgeState) {
+    pub async fn actuate(&mut self, power: HBridgeState) {
         match power {
             HBridgeState::Pos => {
                 self.output_pair.0.set_state(true).await;
