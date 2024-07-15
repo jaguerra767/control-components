@@ -86,7 +86,7 @@ impl Dispenser {
             tokio::time::sleep(Duration::from_secs_f64(1./sample_rate)).await;
         }
         buffer.sort_by(|a, b| a.partial_cmp(b).unwrap());
-        let middle = buffer.len();
+        let middle = buffer.len()/2;
         buffer[middle]
     }
 
