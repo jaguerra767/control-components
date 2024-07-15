@@ -143,6 +143,7 @@ impl Dispenser {
                 self.motor.set_velocity(self.parameters.motor_speed).await;
                 self.motor.relative_move(-10.).await.expect("Motor faulted");
                 tokio::time::sleep(Duration::from_secs(3)).await;
+                self.motor.abrupt_stop().await;
                 self.motor.relative_move(1000.).await.expect("Motor faulted");
 
                 let shutdown = Arc::new(AtomicBool::new(false));
