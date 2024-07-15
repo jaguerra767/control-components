@@ -172,7 +172,7 @@ impl Dispenser {
                         error!("Dispense timed out!");
                         // final_weight = Some(curr_weight);
                         // final_weight = curr_weight;
-                        break DispenseEndCondition::Timeout(curr_weight-init_weight)
+                        break DispenseEndCondition::Timeout(init_weight-curr_weight)
                     }
                     curr_weight = filter_a * self.get_weight().await + filter_b * curr_weight;
                     let err = (curr_weight - target_weight)/w.setpoint;
@@ -181,10 +181,11 @@ impl Dispenser {
                     }
 
                     if curr_weight < target_weight + self.parameters.check_offset {
+                        info!("Check offset reached");
                         self.motor.abrupt_stop().await;
                         let check_weight = self.get_median_weight(150, self.parameters.sample_rate).await;
                         if check_weight < target_weight + self.parameters.stop_offset {
-                            break DispenseEndCondition::WeightAchieved(curr_weight-init_weight)
+                            break DispenseEndCondition::WeightAchieved(init_weight-curr_weight)
                         }
                     }
                 };
