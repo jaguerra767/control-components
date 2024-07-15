@@ -181,7 +181,7 @@ pub async fn actor(mut scale: Scale, mut receiver: Receiver<ScaleCmd>) -> Result
 
         match receiver.try_recv() {
             Ok(cmd) => {
-                info!("Read weight: {weight}");
+                // info!("Read weight: {weight}");
                 cmd.0.send(weight).unwrap()
             }
             Err(TryRecvError::Disconnected) => {
