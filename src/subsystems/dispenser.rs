@@ -152,6 +152,7 @@ impl Dispenser {
                 while self.check_final_weight(final_weight, target_weight) {
 
                     if shutdown.load(Ordering::Relaxed) {
+                        self.motor.abrupt_stop().await;
                         break;
                     }
                     
@@ -164,6 +165,7 @@ impl Dispenser {
                     if current_time - init_time > timeout {
                         self.motor.abrupt_stop().await;
                         error!("Dispense timed out!");
+                        final_weight = Some(curr_weight);
                         break
                     }
                     curr_weight = filter_a * self.get_weight().await + filter_b * curr_weight;
@@ -172,6 +174,7 @@ impl Dispenser {
                         last_sent_motor_cmd = t;
                     }
                 }
+                self.motor.abrupt_stop().await;
                 // info!("Dispensed: {:?}", final_weight.unwrap());
                 info!("Initial Weight: {:?}", init_weight);
                 info!("Final Weight: {:?}", final_weight);
