@@ -193,6 +193,7 @@ impl Dispenser {
                         if check_weight < target_weight + self.parameters.stop_offset {
                             break DispenseEndCondition::WeightAchieved(init_weight-curr_weight)
                         }
+                        self.motor.relative_move(10.).await.unwrap()
                     }
                 };
                 self.motor.abrupt_stop().await;
