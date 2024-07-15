@@ -195,7 +195,7 @@ impl Dispenser {
                             break DispenseEndCondition::WeightAchieved(init_weight-check_weight)
                         }
                         self.motor.relative_move(10.).await.unwrap();
-                        tokio::time::sleep(Duration::from_millis(50)).await
+                        tokio::time::sleep(Duration::from_millis(250)).await
                     }
                 };
                 self.motor.abrupt_stop().await;
