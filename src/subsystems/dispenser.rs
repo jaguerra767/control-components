@@ -174,7 +174,7 @@ impl Dispenser {
                 }
                 // info!("Dispensed: {:?}", final_weight.unwrap());
                 info!("Initial Weight: {:?}", init_weight);
-                info!("Final Weight: {:?}", final_weight.unwrap());
+                info!("Final Weight: {:?}", final_weight);
             }
             Setpoint::Timed(d) => {
                 self.motor.set_velocity(self.parameters.motor_speed).await;
