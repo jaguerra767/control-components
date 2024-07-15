@@ -94,8 +94,14 @@ impl Dispenser {
         let current_time = Instant::now();
         if current_time - last_cmd_time > Duration::from_millis(500) {
             let new_speed = error * self.parameters.motor_speed;
-            if new_speed >= 0.1 {
-                self.motor.set_velocity(new_speed).await;
+            if (new_speed >= 0.1) {
+                self.motor.set_velocity(
+                    if new_speed > self.parameters.motor_speed {
+                        self.parameters.motor_speed
+                    } else {
+                        new_speed
+                    }
+                ).await;
             }
             self.motor.relative_move(20.).await.expect("Motor faulted or not enabled");
             Some(Instant::now())
@@ -176,7 +182,7 @@ impl Dispenser {
                     }
                     curr_weight = filter_a * self.get_weight().await + filter_b * curr_weight;
                     let err = (curr_weight - target_weight)/w.setpoint;
-                    if let Some(t) = self.update_motor_speed(last_sent_motor_cmd, err).await{
+                    if let Some(t) = self.update_motor_speed(last_sent_motor_cmd, err).await {
                         last_sent_motor_cmd = t;
                     }
 
