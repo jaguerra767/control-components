@@ -1,6 +1,7 @@
 use std::fmt::Debug;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::thread::sleep;
 use log::{error, info};
 use crate::components::clear_core_motor::ClearCoreMotor;
 use crate::components::scale::ScaleCmd;
@@ -191,9 +192,10 @@ impl Dispenser {
                         self.motor.abrupt_stop().await;
                         let check_weight = self.get_median_weight(150, self.parameters.sample_rate).await;
                         if check_weight < target_weight + self.parameters.stop_offset {
-                            break DispenseEndCondition::WeightAchieved(init_weight-curr_weight)
+                            break DispenseEndCondition::WeightAchieved(init_weight-check_weight)
                         }
-                        self.motor.relative_move(10.).await.unwrap()
+                        self.motor.relative_move(10.).await.unwrap();
+                        tokio::time::sleep(Duration::from_millis(50)).await
                     }
                 };
                 self.motor.abrupt_stop().await;
