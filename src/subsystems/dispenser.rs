@@ -180,10 +180,12 @@ impl Dispenser {
                         last_sent_motor_cmd = t;
                     }
 
-                    if curr_weight < target_weight {
+                    if curr_weight < target_weight + self.parameters.check_offset {
                         self.motor.abrupt_stop().await;
-                        final_weight = curr_weight;
-                        break DispenseEndCondition::WeightAchieved(curr_weight-init_weight)
+                        let check_weight = self.get_median_weight(150, self.parameters.sample_rate).await;
+                        if check_weight < target_weight + self.parameters.stop_offset {
+                            break DispenseEndCondition::WeightAchieved(curr_weight-init_weight)
+                        }
                     }
                 };
                 self.motor.abrupt_stop().await;
