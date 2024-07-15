@@ -86,7 +86,7 @@ impl Dispenser {
             tokio::time::sleep(Duration::from_secs_f64(1./sample_rate)).await;
         }
         buffer.sort_by(|a, b| a.partial_cmp(b).unwrap());
-        let middle = buffer.len();
+        let middle = buffer.len() / 2;
         buffer[middle]
     }
 
@@ -104,7 +104,7 @@ impl Dispenser {
         }
     }
     fn at_setpoint(&self, current_weight: f64, target_weight: f64) -> Option<f64> {
-        if current_weight < target_weight - self.parameters.check_offset {
+        if current_weight < target_weight + self.parameters.check_offset {
             Some(current_weight)
         } else {
             None
@@ -166,16 +166,15 @@ impl Dispenser {
                         error!("Dispense timed out!");
                         break
                     }
-                    curr_weight = self.get_weight().await; 
-                    curr_weight = filter_a * curr_weight + filter_b * curr_weight;
+                    curr_weight = filter_a * self.get_weight().await + filter_b * curr_weight;
                     let err = (curr_weight - target_weight)/w.setpoint;
                     if let Some(t) = self.update_motor_speed(last_sent_motor_cmd, err).await{
                         last_sent_motor_cmd = t;
                     }
                 }
-                let dispensed_weight = final_weight.unwrap();
-                info!("Dispensed: {dispensed_weight}");
-                
+                // info!("Dispensed: {:?}", final_weight.unwrap());
+                info!("Initial Weight: {:?}", init_weight);
+                info!("Final Weight: {:?}", final_weight.unwrap());
             }
             Setpoint::Timed(d) => {
                 self.motor.set_velocity(self.parameters.motor_speed).await;
