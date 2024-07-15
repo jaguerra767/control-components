@@ -171,7 +171,7 @@ impl Dispenser {
                         error!("Dispense timed out!");
                         // final_weight = Some(curr_weight);
                         // final_weight = curr_weight;
-                        break DispenseEndCondition::Timeout(curr_weight)
+                        break DispenseEndCondition::Timeout(curr_weight-init_weight)
                     }
                     curr_weight = filter_a * self.get_weight().await + filter_b * curr_weight;
                     let err = (curr_weight - target_weight)/w.setpoint;
@@ -182,14 +182,14 @@ impl Dispenser {
                     if curr_weight < target_weight {
                         self.motor.abrupt_stop().await;
                         final_weight = curr_weight;
-                        break DispenseEndCondition::WeightAchieved(curr_weight)
+                        break DispenseEndCondition::WeightAchieved(curr_weight-init_weight)
                     }
                 };
                 self.motor.abrupt_stop().await;
                 // info!("Dispensed: {:?}", final_weight.unwrap());
                 info!("End Condition: {:?}", end_condition);
-                info!("Initial Weight: {:?}", init_weight);
-                info!("Final Weight: {:?}", curr_weight);
+                // info!("Initial Weight: {:?}", init_weight);
+                // info!("Final Weight: {:?}", curr_weight);
             }
             Setpoint::Timed(d) => {
                 self.motor.set_velocity(self.parameters.motor_speed).await;
