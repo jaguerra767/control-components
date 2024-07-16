@@ -26,12 +26,12 @@ impl BagGripper {
 
     pub async fn open(&mut self) {
         self.actuator.actuate(HBridgeState::Pos).await;
-        sleep(Duration::from_secs_f64(2.0)).await;
+        sleep(Duration::from_secs_f64(4.0)).await;
     }
 
     pub async fn close(&mut self) {
         self.actuator.actuate(HBridgeState::Neg).await;
-        sleep(Duration::from_secs_f64(2.0)).await;
+        sleep(Duration::from_secs_f64(4.0)).await;
     }
     pub async fn rip_bag(&self) -> Result<(), Box<dyn Error>> {
         for pos in self.positions.as_slice() {
