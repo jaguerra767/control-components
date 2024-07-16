@@ -25,7 +25,8 @@ impl Scale {
         let cells: [LoadCell; 4] = array::from_fn(|i| LoadCell::new(phidget_id, i as i32));
         Self {
             cells,
-            cell_coefficients: vec![1.; 4],
+            // cell_coefficients: vec![1.; 4],
+            cell_coefficients: vec![-5897877.72181665, 5263019.161459, -4005678.071311, 4000763.38549006],
             tare_offset: 0.,
             connected: false
         }
@@ -182,7 +183,7 @@ pub async fn actor(mut scale: Scale, mut receiver: Receiver<ScaleCmd>) -> Result
 
         match receiver.try_recv() {
             Ok(cmd) => {
-                info!("Read weight: {weight}");
+                // info!("Read weight: {weight}");
                 cmd.0.send(weight).unwrap()
             }
             Err(TryRecvError::Disconnected) => {
