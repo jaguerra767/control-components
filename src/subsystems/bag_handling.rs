@@ -2,7 +2,11 @@ use crate::components::clear_core_io::{DigitalInput, HBridgeState};
 use crate::components::clear_core_motor::{ClearCoreMotor, Status};
 use crate::subsystems::linear_actuator::SimpleLinearActuator;
 use std::error::Error;
+use tokio::sync::mpsc::Receiver;
 use std::time::Duration;
+use log::error;
+use tokio::join;
+use tokio::sync::mpsc::Sender;
 use tokio::time::sleep;
 
 pub struct BagGripper {
@@ -84,6 +88,44 @@ impl BagSensor {
             false => BagSensorState::Bagful,
         }
     }
+
+    pub async fn watcher(photo_eye: DigitalInput, mut tx: Sender<BagSensorState>) {
+        let sensor = Self::new(photo_eye);
+        loop {
+            tx.clone().send(sensor.check().await).await.unwrap();
+            sleep(Duration::from_millis(50)).await;
+        }
+    }
+
+    pub async fn listener(mut rx: Receiver<BagSensorState>) -> Result<(), BagError> {
+        while let Some(msg) = rx.recv().await {
+            match msg {
+                BagSensorState::Bagful => (),
+                BagSensorState::Bagless => {
+                    error!("Lost Bag");
+                    return Err(BagError::LostBag)
+                }
+            }
+        }
+        Ok(())
+    }
+
+    pub async fn actor(&self, ) -> Result<(), BagError> {
+        let (tx, rx) = tokio::sync::mpsc::channel(10);
+        let photo_eye = self.photo_eye.clone();
+        let watcher = tokio::spawn(Self::watcher(photo_eye, tx));
+        let listener = tokio::spawn(BagSensor::listener(rx));
+        let result = match listener.await.unwrap() {
+            Err(e) => Err(e),
+            _ => Ok(()),
+        };
+        watcher.abort();
+        result
+    }
+}
+
+pub enum BagError {
+    LostBag,
 }
 
 // #[tokio::test]
