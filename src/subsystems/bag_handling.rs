@@ -68,6 +68,24 @@ impl BagDispenser {
     }
 }
 
+pub enum BagSensorState {
+    Bagless,
+    Bagful
+}
+pub struct BagSensor {
+    photo_eye: DigitalInput
+}
+impl BagSensor {
+    pub fn new(photo_eye: DigitalInput) -> Self { Self { photo_eye } }
+
+    pub async fn check(&self) -> BagSensorState {
+        match self.photo_eye.get_state().await {
+            true => BagSensorState::Bagless,
+            false => BagSensorState::Bagful,
+        }
+    }
+}
+
 // #[tokio::test]
 // async fn test_bag_dispense() {
 //     let (tx, rx) = tokio::sync::mpsc::channel(10);
