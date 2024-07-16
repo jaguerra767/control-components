@@ -173,6 +173,7 @@ pub async fn actor(mut scale: Scale, mut receiver: Receiver<ScaleCmd>) -> Result
 
     loop {
         if shutdown.load(Ordering::Relaxed) {
+            drop(scale);
             break;
         }
         let weight: f64;
