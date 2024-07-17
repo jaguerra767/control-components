@@ -15,7 +15,7 @@ impl Hatch {
     }
 
     pub fn from_io(ch_a: Output, ch_b: Output, fb: AnalogInput) -> Self {
-        Self::new(RelayHBridge::new((ch_a, ch_b), fb), Duration::from_secs(4))
+        Self::new(RelayHBridge::new((ch_a, ch_b), fb), Duration::from_secs(7))
     }
 
     pub async fn get_position(&self) -> isize {
