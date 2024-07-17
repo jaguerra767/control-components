@@ -62,7 +62,7 @@ impl Controller {
             .map(|index| DigitalInput::new(index as u8, tx.clone()))
             .collect();
         let analog_inputs = (0..NO_ANALOG_INPUTS)
-            .map(|index| AnalogInput::new(index as u8, tx.clone()))
+            .map(|index| AnalogInput::new(index as u8 + 3, tx.clone()))
             .collect();
         let outputs = (0..NO_OUTPUTS)
             .map(|index| DigitalOutput::new(index as u8, tx.clone()))
