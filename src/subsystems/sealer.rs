@@ -6,30 +6,32 @@ use crate::subsystems::linear_actuator::Output;
 pub struct Sealer {
     heater: Output,
     actuator_io: IOCard,
+    slot_id: usize,
     extend_id: u8,
     retract_id: u8,
 }
 
 impl Sealer {
-    pub fn new(heater: Output, actuator_io: IOCard, extend_id: u8, retract_id: u8) -> Self {
+    pub fn new(heater: Output, actuator_io: IOCard, slot_id: usize, extend_id: u8, retract_id: u8) -> Self {
         Self {
             heater,
             actuator_io,
+            slot_id,
             extend_id,
             retract_id,
         }
     }
 
     async fn extend_heater(&mut self) {
-        self.actuator_io.set_state(1, self.extend_id, true).await;
+        self.actuator_io.set_state(self.slot_id, self.extend_id, true).await;
         tokio::time::sleep(Duration::from_secs_f64(3.)).await;
-        self.actuator_io.set_state(1, self.extend_id, false).await;
+        self.actuator_io.set_state(self.slot_id, self.extend_id, false).await;
     }
 
     async fn retract_heater(&mut self) {
-        self.actuator_io.set_state(1, self.retract_id, true).await;
+        self.actuator_io.set_state(self.slot_id, self.retract_id, true).await;
         tokio::time::sleep(Duration::from_secs_f64(3.)).await;
-        self.actuator_io.set_state(1, self.retract_id, false).await;
+        self.actuator_io.set_state(self.slot_id, self.retract_id, false).await;
     }
 
     async fn heat(&mut self, dwell_time: Duration) {
