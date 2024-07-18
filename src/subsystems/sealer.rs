@@ -1,3 +1,4 @@
+use std::cmp::Ordering;
 use crate::components::clear_core_io::{AnalogInput, DigitalOutput, HBridgeState};
 use crate::controllers::ek1100_io::IOCard;
 use std::time::Duration;
@@ -26,6 +27,15 @@ impl Sealer {
 
     pub async fn get_actuator_position(&mut self) -> isize {
         self.actuator.get_feedback().await
+    }
+    
+    pub async fn absolute_move(&mut self, position: isize) {
+        let current_pos = self.get_actuator_position().await;
+        match current_pos.cmp(&position) {
+            Ordering::Greater => self.retract_actuator(position).await,
+            Ordering::Less => self.extend_actuator(position).await,
+            Ordering::Equal => info!("Sealer already at position: {:?}", position),
+        }
     }
 
     pub async fn timed_extend_actuator(&mut self, time: Duration) {
@@ -73,9 +83,9 @@ impl Sealer {
     }
 
     pub async fn seal(&mut self) {
-        self.extend_actuator().await;
+        self.extend_actuator(self.extend_setpoint).await;
         self.heat(Duration::from_secs_f64(3.0)).await;
-        self.retract_heater().await;
+        self.retract_actuator(self.retract_setpoint).await;
     }
 }
 
