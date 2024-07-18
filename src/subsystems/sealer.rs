@@ -85,9 +85,9 @@ impl Sealer {
     }
 
     pub async fn seal(&mut self) {
-        self.extend_actuator(self.extend_setpoint).await;
+        self.absolute_move(self.extend_setpoint).await;
         self.heat(Duration::from_secs_f64(3.0)).await;
-        self.retract_actuator(self.retract_setpoint).await;
+        self.absolute_move(self.retract_setpoint).await;
     }
 }
 
