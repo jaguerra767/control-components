@@ -32,10 +32,10 @@ impl Sealer {
     pub async fn absolute_move(&mut self, position: isize) {
         let current_pos = self.get_actuator_position().await;
         match current_pos.cmp(&position) {
-            // Ordering::Greater => self.retract_actuator(position).await,
-            Ordering::Greater => self.timed_retract_actuator(Duration::from_secs(3)).await,
-            // Ordering::Less => self.extend_actuator(position).await,
-            Ordering::Less => self.timed_extend_actuator(Duration::from_secs(3)).await,
+            Ordering::Greater => self.retract_actuator(position).await,
+            // Ordering::Greater => self.timed_retract_actuator(Duration::from_secs(3)).await,
+            Ordering::Less => self.extend_actuator(position).await,
+            // Ordering::Less => self.timed_extend_actuator(Duration::from_secs(3)).await,
             Ordering::Equal => info!("Sealer already at position: {:?}", position),
         }
     }
@@ -49,7 +49,7 @@ impl Sealer {
     pub async fn extend_actuator(&mut self, set_point: isize) {
         self.actuator.actuate(HBridgeState::Pos).await;
         let star_time = Instant::now();
-        while self.actuator.get_feedback().await >= set_point {
+        while self.actuator.get_feedback().await <= set_point {
             let curr_time = Instant::now();
             if (curr_time - star_time) > self.timeout {
                 info!("Timed Out!");
@@ -68,7 +68,7 @@ impl Sealer {
     pub async fn retract_actuator(&mut self, set_point: isize) {
         self.actuator.actuate(HBridgeState::Neg).await;
         let star_time = Instant::now();
-        while self.actuator.get_feedback().await <= set_point {
+        while self.actuator.get_feedback().await >= set_point {
             let curr_time = Instant::now();
             if (curr_time - star_time) > self.timeout {
                 info!("Timed Out!");
