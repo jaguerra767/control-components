@@ -28,12 +28,14 @@ impl Sealer {
     pub async fn get_actuator_position(&mut self) -> isize {
         self.actuator.get_feedback().await
     }
-    
+
     pub async fn absolute_move(&mut self, position: isize) {
         let current_pos = self.get_actuator_position().await;
         match current_pos.cmp(&position) {
-            Ordering::Greater => self.retract_actuator(position).await,
-            Ordering::Less => self.extend_actuator(position).await,
+            // Ordering::Greater => self.retract_actuator(position).await,
+            Ordering::Greater => self.timed_retract_actuator(Duration::from_secs(3)).await,
+            // Ordering::Less => self.extend_actuator(position).await,
+            Ordering::Less => self.timed_extend_actuator(Duration::from_secs(3)).await,
             Ordering::Equal => info!("Sealer already at position: {:?}", position),
         }
     }
