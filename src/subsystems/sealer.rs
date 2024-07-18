@@ -1,37 +1,69 @@
-use crate::components::clear_core_io::DigitalOutput;
+use crate::components::clear_core_io::{AnalogInput, DigitalOutput, HBridgeState};
 use crate::controllers::ek1100_io::IOCard;
 use std::time::Duration;
-use crate::subsystems::linear_actuator::Output;
+use log::info;
+use tokio::time::Instant;
+use crate::subsystems::linear_actuator::{Output, RelayHBridge};
 
 pub struct Sealer {
     heater: Output,
-    actuator_io: IOCard,
-    slot_id: usize,
-    extend_id: u8,
-    retract_id: u8,
+    actuator: RelayHBridge,
+    timeout: Duration,
+    extend_setpoint: isize,
+    retract_setpoint: isize,
 }
 
 impl Sealer {
-    pub fn new(heater: Output, actuator_io: IOCard, slot_id: usize, extend_id: u8, retract_id: u8) -> Self {
+    pub fn new(heater: Output, actuator: RelayHBridge, timeout: Duration, extend_setpoint: isize, retract_setpoint: isize) -> Self {
         Self {
             heater,
-            actuator_io,
-            slot_id,
-            extend_id,
-            retract_id,
+            actuator,
+            timeout,
+            extend_setpoint,
+            retract_setpoint,
         }
     }
 
-    async fn extend_heater(&mut self) {
-        self.actuator_io.set_state(self.slot_id, self.extend_id, true).await;
-        tokio::time::sleep(Duration::from_secs_f64(3.)).await;
-        self.actuator_io.set_state(self.slot_id, self.extend_id, false).await;
+    pub async fn get_actuator_position(&mut self) -> isize {
+        self.actuator.get_feedback().await
     }
 
-    async fn retract_heater(&mut self) {
-        self.actuator_io.set_state(self.slot_id, self.retract_id, true).await;
-        tokio::time::sleep(Duration::from_secs_f64(3.)).await;
-        self.actuator_io.set_state(self.slot_id, self.retract_id, false).await;
+    pub async fn timed_extend_actuator(&mut self, time: Duration) {
+        self.actuator.actuate(HBridgeState::Pos).await;
+        tokio::time::sleep(time).await;
+        self.actuator.actuate(HBridgeState::Off).await;
+    }
+
+    pub async fn extend_actuator(&mut self, set_point: isize) {
+        self.actuator.actuate(HBridgeState::Pos).await;
+        let star_time = Instant::now();
+        while self.actuator.get_feedback().await >= set_point {
+            let curr_time = Instant::now();
+            if (curr_time - star_time) > self.timeout {
+                info!("Timed Out!");
+                break;
+            }
+        }
+        self.actuator.actuate(HBridgeState::Off).await;
+    }
+
+    pub async fn timed_retract_actuator(&mut self, time: Duration) {
+        self.actuator.actuate(HBridgeState::Neg).await;
+        tokio::time::sleep(time).await;
+        self.actuator.actuate(HBridgeState::Off).await;
+    }
+
+    pub async fn retract_actuator(&mut self, set_point: isize) {
+        self.actuator.actuate(HBridgeState::Neg).await;
+        let star_time = Instant::now();
+        while self.actuator.get_feedback().await <= set_point {
+            let curr_time = Instant::now();
+            if (curr_time - star_time) > self.timeout {
+                info!("Timed Out!");
+                break;
+            }
+        }
+        self.actuator.actuate(HBridgeState::Off).await;
     }
 
     async fn heat(&mut self, dwell_time: Duration) {
@@ -41,7 +73,7 @@ impl Sealer {
     }
 
     pub async fn seal(&mut self) {
-        self.extend_heater().await;
+        self.extend_actuator().await;
         self.heat(Duration::from_secs_f64(3.0)).await;
         self.retract_heater().await;
     }
