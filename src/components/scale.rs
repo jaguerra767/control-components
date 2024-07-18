@@ -141,6 +141,7 @@ impl Scale {
 
         Ok((scale, times, weights))
     }
+    
 }
 
 fn dot(vec1: Vec<f64>, vec2: Vec<f64>) -> f64 {
@@ -201,6 +202,14 @@ pub enum ScaleError {
     LoadCellError,
     MatrixError(MatrixError),
     IoError(io::Error),
+}
+
+#[test]
+fn calibrate() {
+    let mut scale = Scale::new(716625);
+    scale = scale.connect().unwrap();
+    let (scale, readings) = Scale::get_medians(scale, Duration::from_secs(10), 50.);
+    println!("Cell Medians: {:?}", readings)
 }
 
 #[test]
