@@ -174,10 +174,28 @@ impl ClearCoreMotor {
         self.write(clear_cmd.as_slice()).await;
     }
 
-    pub async fn wait_for_move(&self, interval: Duration) {
-        while self.get_status().await == Status::Moving {
-            tokio::time::sleep(interval).await;
+    pub async fn wait_for_move(&self, interval: Duration) -> Result<(), Status> {
+        
+        loop {
+            let status= self.get_status().await;
+            match status {
+                Status::Moving => {
+                    tokio::time::sleep(interval).await;
+                    continue
+                },
+                Status::Disabled | Status::Faulted | Status::Unknown => {
+                    return Err(status)
+                },
+                Status::Ready => {
+                    break
+                },
+                Status::Enabling => {
+                    tokio::time::sleep(Duration::from_secs(3)).await;
+                    continue
+                }
+            }
         }
+        Ok(())
     }
 }
 
