@@ -25,8 +25,8 @@ impl Scale {
         let cells: [LoadCell; 4] = array::from_fn(|i| LoadCell::new(phidget_id, i as i32));
         Self {
             cells,
-            // cell_coefficients: vec![1.; 4],
-            cell_coefficients: vec![-5897877.72181665, 5263019.161459, -4005678.071311, 4000763.38549006],
+            cell_coefficients: vec![0.; 4],
+            // cell_coefficients: vec![-5897877.72181665, 5263019.161459, -4005678.071311, 4000763.38549006],
             tare_offset: 0.,
             connected: false
         }
@@ -206,7 +206,7 @@ pub enum ScaleError {
 
 #[test]
 fn calibrate() {
-    let mut scale = Scale::new(716625);
+    let mut scale = Scale::new(716709);
     scale = scale.connect().unwrap();
     let (scale, readings) = Scale::get_medians(scale, Duration::from_secs(10), 50.);
     println!("Cell Medians: {:?}", readings)
