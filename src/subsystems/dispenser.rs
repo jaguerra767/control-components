@@ -18,6 +18,7 @@ pub struct Parameters {
     pub cutoff_frequency: f64,
     pub check_offset: f64,
     pub stop_offset: f64,
+    pub retract_before: Option<f64>,
     pub retract_after: Option<f64>,
 }
 
@@ -29,6 +30,7 @@ impl Default for Parameters {
             cutoff_frequency: 0.5, 
             check_offset: 15.0, 
             stop_offset: 7.0,
+            retract_before: None,
             retract_after: None,
         }
     }
@@ -144,16 +146,18 @@ impl Dispenser {
                 let mut curr_weight = self.get_median_weight(200, self.parameters.sample_rate).await;
                 let init_weight = curr_weight;
                 // let mut final_weight: Option<f64> = None;
-                let mut final_weight: f64;
+                // let mut final_weight: f64;
                 let target_weight = init_weight - w.setpoint;
 
                 //Starting motor moves
                 //Run backwards for a bit
                 self.motor.set_velocity(self.parameters.motor_speed).await;
-                self.motor.relative_move(-10.).await.expect("Motor faulted");
-                tokio::time::sleep(Duration::from_secs(3)).await;
-                self.motor.abrupt_stop().await;
-                self.motor.relative_move(1000.).await.expect("Motor faulted");
+                if let Some(retract) = self.parameters.retract_before {
+                    self.motor.relative_move(-retract).await.expect("Motor faulted");
+                    self.motor.wait_for_move(Duration::from_millis(50)).await.unwrap();
+                    self.motor.abrupt_stop().await;
+                }
+                self.motor.relative_move(100.).await.expect("Motor faulted");
 
                 let shutdown = Arc::new(AtomicBool::new(false));
                 signal_hook::flag::register(signal_hook::consts::SIGINT, Arc::clone(&shutdown))
