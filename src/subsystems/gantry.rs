@@ -14,8 +14,8 @@ pub enum GantryCommand {
 }
 
 pub async fn gantry(motor: ClearCoreMotor, mut rx: Receiver<GantryCommand>) {
-    motor.set_acceleration(40.).await;
-    motor.set_velocity(300.).await;
+    // motor.set_acceleration(40.).await;
+    // motor.set_velocity(300.).await;
     motor.enable().await.unwrap();
     while let Some(cmd) = rx.recv().await {
         match cmd {
