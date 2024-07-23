@@ -18,6 +18,7 @@ pub struct Parameters {
     pub cutoff_frequency: f64,
     pub check_offset: f64,
     pub stop_offset: f64,
+    pub retract_after: Option<f64>,
 }
 
 impl Default for Parameters {
@@ -27,7 +28,8 @@ impl Default for Parameters {
             sample_rate: 50.0, 
             cutoff_frequency: 0.5, 
             check_offset: 15.0, 
-            stop_offset: 7.0
+            stop_offset: 7.0,
+            retract_after: None,
         }
     }
 }
@@ -190,8 +192,15 @@ impl Dispenser {
                     if curr_weight < target_weight + self.parameters.check_offset {
                         info!("Check offset reached");
                         self.motor.abrupt_stop().await;
+                        if let Some(retract) = self.parameters.retract_after {
+                            self.motor.relative_move(-retract).await.unwrap();
+                            self.motor.wait_for_move(Duration::from_millis(50)).await.unwrap();
+                        }
                         let check_weight = self.get_median_weight(150, self.parameters.sample_rate).await;
                         if check_weight < target_weight + self.parameters.stop_offset {
+                            if let Some(retract) = self.parameters.retract_after {
+                                self.motor.relative_move(-retract*3.).await.unwrap();
+                            }
                             break DispenseEndCondition::WeightAchieved(init_weight-check_weight)
                         }
                         self.motor.relative_move(10.).await.unwrap();

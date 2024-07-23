@@ -206,9 +206,9 @@ pub enum ScaleError {
 
 #[test]
 fn calibrate() {
-    let mut scale = Scale::new(716709);
+    let mut scale = Scale::new(716623);
     scale = scale.connect().unwrap();
-    let (scale, readings) = Scale::get_medians(scale, Duration::from_secs(10), 50.);
+    let (scale, readings) = Scale::get_medians(scale, Duration::from_secs(20), 50.);
     println!("Cell Medians: {:?}", readings)
 }
 
@@ -240,7 +240,7 @@ fn live_weigh_scale() -> Result<(), Box<dyn Error>> {
 
 #[test]
 fn weigh_scale() -> Result<(), Box<dyn Error>> {
-    let mut scale = Scale::new(716620);
+    let mut scale = Scale::new(716623);
     scale = Scale::connect(scale)?;
     // scale = Scale::change_coefficients(scale, vec![-4926943.639406107, 2486765.6938639805, -4985950.215221712, 4799388.712869379]);
     scale = Scale::change_coefficients(
