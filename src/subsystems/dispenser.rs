@@ -200,6 +200,7 @@ impl Dispenser {
                         if check_weight < target_weight + self.parameters.stop_offset {
                             if let Some(retract) = self.parameters.retract_after {
                                 self.motor.relative_move(-retract).await.unwrap();
+                                self.motor.wait_for_move(Duration::from_millis(10)).await.unwrap();
                             }
                             break DispenseEndCondition::WeightAchieved(init_weight-check_weight)
                         }
