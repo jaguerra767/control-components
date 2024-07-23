@@ -97,9 +97,9 @@ impl Dispenser {
 
     async fn update_motor_speed(&self, last_cmd_time: Instant, error: f64) -> Option<Instant>{
         let current_time = Instant::now();
-        if current_time - last_cmd_time > Duration::from_millis(500) {
+        if current_time - last_cmd_time > Duration::from_millis(200) {
             let new_speed = error * self.parameters.motor_speed;
-            if (new_speed >= 0.1) {
+            if new_speed >= 0.1 {
                 self.motor.set_velocity(
                     if new_speed > self.parameters.motor_speed {
                         self.parameters.motor_speed
@@ -192,6 +192,7 @@ impl Dispenser {
                     if let Some(t) = self.update_motor_speed(last_sent_motor_cmd, err).await {
                         last_sent_motor_cmd = t;
                     }
+                    
 
                     if curr_weight < target_weight + self.parameters.check_offset {
                         info!("Check offset reached");
