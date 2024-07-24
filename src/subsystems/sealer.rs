@@ -89,6 +89,12 @@ impl Sealer {
         self.heat(Duration::from_secs_f64(3.0)).await;
         self.absolute_move(self.retract_setpoint).await;
     }
+    
+    pub async fn timed_move_seal(&mut self, time: Duration) {
+        self.timed_extend_actuator(time).await;
+        self.heat(Duration::from_secs_f64(3.)).await;
+        self.timed_retract_actuator(time).await;
+    }
 }
 
 // #[tokio::test]
