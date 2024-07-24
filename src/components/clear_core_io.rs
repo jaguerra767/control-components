@@ -27,7 +27,7 @@ impl SendRecv for DigitalInput {
         &self.drive_sender
     }
 }
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct AnalogInput {
     cmd: [u8; 4],
     drive_sender: Sender<Message>,
@@ -51,7 +51,7 @@ impl SendRecv for AnalogInput {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct DigitalOutput {
     on_cmd: [u8; 9],
     off_cmd: [u8; 9],
@@ -93,7 +93,7 @@ pub enum HBridgeState {
     Neg,
     Off,
 }
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct HBridge {
     power: i16,
     prefix: [u8; 3],

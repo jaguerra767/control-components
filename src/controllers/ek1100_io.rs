@@ -27,7 +27,7 @@ pub struct Message {
     pub command: Command,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct IOCard {
     state: u8,
     tx: Sender<Message>,

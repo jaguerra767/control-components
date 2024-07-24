@@ -1,3 +1,4 @@
+use log::{info, log, warn};
 use crate::components::clear_core_io::{AnalogInput, DigitalOutput, HBridge, HBridgeState};
 pub use crate::controllers::clear_core::Message;
 use crate::controllers::ek1100_io::IOCard;
@@ -47,6 +48,7 @@ pub enum ActuatorCh {
     Chb,
 }
 
+#[derive(Debug)]
 pub enum Output {
     EtherCat(IOCard, usize, u8),
     ClearCore(DigitalOutput),
@@ -65,6 +67,7 @@ impl Output {
     }
 }
 
+#[derive(Debug)]
 pub struct RelayHBridge {
     fb_pair: (AnalogInput, Option<AnalogInput>),
     output_pair: (Output, Output),
@@ -91,6 +94,7 @@ impl RelayHBridge {
             let pos_b = fb.get_state().await;
             position = (position + pos_b) / 2
         }
+        warn!("Output {:?} at position {:?}", self, position);
         position
     }
 
