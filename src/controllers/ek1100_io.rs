@@ -18,34 +18,28 @@ const PDI_LEN: usize = 64;
 static PDU_STORAGE: PduStorage<MAX_FRAMES, MAX_PDU_DATA> = PduStorage::new();
 
 pub enum Command {
-    SetState(u8),
+    SetState(bool),
     GetState(oneshot::Sender<u8>),
 }
-pub struct Message {
+
+
+pub struct EthCmd {
     pub card_id: usize,
-    pub card_state: u8,
-    pub command: Command,
+    pub idx: u8,
+    pub cmd: Command
 }
 
 #[derive(Clone, Debug)]
 pub struct IOCard {
-    state: u8,
-    tx: Sender<Message>,
+    tx: Sender<EthCmd>,
 }
 
 impl IOCard {
-    pub fn new(tx: Sender<Message>) -> Self {
-        Self { state: 0, tx }
+    pub fn new(tx: Sender<EthCmd>) -> Self {
+        Self { tx }
     }
-
     pub async fn set_state(&mut self, card_id: usize, idx: u8, state: bool) {
-        let shift = idx;
-        self.state = self.state & !(1 << shift) | (u8::from(state) << shift);
-        let msg = Message {
-            card_id,
-            card_state: self.state,
-            command: Command::SetState(self.state),
-        };
+        let msg = EthCmd {card_id, idx, cmd: Command::SetState(state)};
         self.tx.send(msg).await.unwrap();
     }
 }
@@ -55,7 +49,7 @@ pub struct Controller {
 }
 
 impl Controller {
-    pub fn new(tx: Sender<Message>, io_qty: u8) -> Self {
+    pub fn new(tx: Sender<EthCmd>, io_qty: u8) -> Self {
         let io: Vec<IOCard> = (0..io_qty).map(|_| IOCard::new(tx.clone())).collect();
         Self { io }
     }
@@ -72,7 +66,7 @@ impl Controller {
     }
 }
 
-pub async fn client(interface: &str, mut rx: Receiver<Message>) -> Result<(), Box<dyn Error + Send + Sync>> {
+pub async fn client(interface: &str, mut rx: Receiver<EthCmd>) -> Result<(), Box<dyn Error + Send + Sync>> {
     println!("Hello from client");
     let (pdu_tx, pdu_rx, pdu_loop) = PDU_STORAGE
         .try_split()
@@ -128,10 +122,12 @@ pub async fn client(interface: &str, mut rx: Receiver<Message>) -> Result<(), Bo
                 let card_id = msg.card_id;
                 let mut slave = group.slave(&client, card_id).expect("Unable to get slave");
                 let (i, o) = slave.io_raw_mut();
-                match msg.command {
+                match msg.cmd {
                     Command::SetState(state) => {
                         info!("SetState with new state: {state} called on EK1100 card: {card_id}");
-                        o[0] = state;
+                        let old_state = o[0];
+                        let shift = msg.idx;
+                        o[0] = old_state & !(1 << shift) | (u8::from(state) << shift);
                     }
                     Command::GetState(tx) => {
                         let state = i[0];
