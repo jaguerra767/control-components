@@ -94,7 +94,7 @@ impl RelayHBridge {
             let pos_b = fb.get_state().await;
             position = (position + pos_b) / 2
         }
-        warn!("Output {:?} at position {:?}", self, position);
+        // warn!("Output {:?} at position {:?}", self.output_pair, position);
         position
     }
 
