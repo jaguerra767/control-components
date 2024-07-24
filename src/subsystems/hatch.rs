@@ -29,9 +29,9 @@ impl Hatch {
     }
 
     pub async fn open(&mut self, set_point: isize) {
-        self.actuator.actuate(HBridgeState::Pos).await;
         let star_time = Instant::now();
         while self.actuator.get_feedback().await >= set_point {
+            self.actuator.actuate(HBridgeState::Pos).await;
             let curr_time = Instant::now();
             if (curr_time - star_time) > self.timeout {
                 info!("Timed Out!");
@@ -48,9 +48,10 @@ impl Hatch {
     }
 
     pub async fn close(&mut self, set_point: isize) {
-        self.actuator.actuate(HBridgeState::Neg).await;
+        
         let star_time = Instant::now();
         while self.actuator.get_feedback().await <= set_point {
+            self.actuator.actuate(HBridgeState::Neg).await;
             let curr_time = Instant::now();
             if (curr_time - star_time) > self.timeout {
                 info!("Timed Out!");
