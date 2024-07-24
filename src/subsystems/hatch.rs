@@ -1,3 +1,4 @@
+use std::thread::sleep;
 use crate::components::clear_core_io::{AnalogInput, HBridgeState};
 use crate::subsystems::linear_actuator::{Output, RelayHBridge};
 use std::time::Duration;
@@ -30,13 +31,14 @@ impl Hatch {
 
     pub async fn open(&mut self, set_point: isize) {
         let star_time = Instant::now();
+        self.actuator.actuate(HBridgeState::Pos).await;
         while self.actuator.get_feedback().await >= set_point {
-            self.actuator.actuate(HBridgeState::Pos).await;
             let curr_time = Instant::now();
             if (curr_time - star_time) > self.timeout {
                 info!("Timed Out!");
                 break;
             }
+            tokio::time::sleep(Duration::from_millis(500)).await;
         }
         self.actuator.actuate(HBridgeState::Off).await;
     }
@@ -50,13 +52,14 @@ impl Hatch {
     pub async fn close(&mut self, set_point: isize) {
         
         let star_time = Instant::now();
+        self.actuator.actuate(HBridgeState::Neg).await;
         while self.actuator.get_feedback().await <= set_point {
-            self.actuator.actuate(HBridgeState::Neg).await;
             let curr_time = Instant::now();
             if (curr_time - star_time) > self.timeout {
                 info!("Timed Out!");
                 break;
             }
+            tokio::time::sleep(Duration::from_millis(500)).await;
         }
         self.actuator.actuate(HBridgeState::Off).await;
     }
