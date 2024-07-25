@@ -104,7 +104,7 @@ pub async fn client(interface: &str, mut rx: Receiver<EthCmd>) -> Result<(), Box
         );
     }
 
-    let mut tick_interval = tokio::time::interval(Duration::from_millis(5));
+    let mut tick_interval = tokio::time::interval(Duration::from_millis(1));
     tick_interval.set_missed_tick_behavior(MissedTickBehavior::Skip);
 
     let shutdown = Arc::new(AtomicBool::new(false));
