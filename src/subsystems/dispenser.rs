@@ -48,7 +48,7 @@ pub enum Setpoint {
     Weight(WeightedDispense),
     Timed(Duration),
 }
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct DispenseParameters {
     pub parameters: Parameters,
