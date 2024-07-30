@@ -7,7 +7,7 @@ use std::time::Duration;
 use log::error;
 use tokio::join;
 use tokio::sync::mpsc::Sender;
-use tokio::time::sleep;
+use tokio::time::{interval, sleep};
 
 pub struct BagGripper {
     motor: ClearCoreMotor,
@@ -33,6 +33,21 @@ impl BagGripper {
         self.actuator.actuate(HBridgeState::Neg).await;
         sleep(Duration::from_secs_f64(4.0)).await;
     }
+    
+    pub async fn timed_open(&mut self, time: Duration) {
+        let mut interval = interval(time);
+        self.actuator.actuate(HBridgeState::Pos).await;
+        interval.tick().await;
+        interval.tick().await;
+    }
+    
+    pub async fn timed_close(&mut self, time: Duration) {
+        let mut interval = interval(time);
+        self.actuator.actuate(HBridgeState::Neg).await;
+        interval.tick().await;
+        interval.tick().await;
+    }
+    
     pub async fn rip_bag(&self) -> Result<(), Box<dyn Error>> {
         for pos in self.positions.as_slice() {
             self.motor.relative_move(*pos).await.unwrap();
