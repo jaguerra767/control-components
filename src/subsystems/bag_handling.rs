@@ -103,7 +103,7 @@ impl BagSensor {
         }
     }
 
-    pub async fn watcher(photo_eye: DigitalInput, mut tx: Sender<BagSensorState>) {
+    pub async fn watcher(photo_eye: DigitalInput, tx: Sender<BagSensorState>) {
         let sensor = Self::new(photo_eye);
         loop {
             tx.clone().send(sensor.check().await).await.unwrap();

@@ -6,6 +6,7 @@ use serde::Serialize;
 use std::result::Result;
 pub use std::time::Duration;
 use tokio::sync::mpsc::Sender;
+use tokio::time::MissedTickBehavior;
 
 const REPLY_IDX: usize = 3;
 const SUCCESSFUL_REPLY: u8 = b'_';
@@ -175,12 +176,13 @@ impl ClearCoreMotor {
     }
 
     pub async fn wait_for_move(&self, interval: Duration) -> Result<(), Status> {
-        
+        let mut tick_interval = tokio::time::interval(interval);
+        tick_interval.set_missed_tick_behavior(MissedTickBehavior::Skip); 
         loop {
             let status= self.get_status().await;
             match status {
                 Status::Moving => {
-                    tokio::time::sleep(interval).await;
+                    tick_interval.tick().await; 
                     continue
                 },
                 Status::Disabled | Status::Faulted | Status::Unknown => {
@@ -190,10 +192,12 @@ impl ClearCoreMotor {
                     break
                 },
                 Status::Enabling => {
-                    tokio::time::sleep(Duration::from_secs(3)).await;
+                    tick_interval.tick().await; 
                     continue
                 }
+                
             }
+            
         }
         Ok(())
     }

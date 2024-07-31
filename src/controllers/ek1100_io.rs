@@ -118,6 +118,7 @@ pub async fn client(interface: &str, mut rx: Receiver<EthCmd>) -> Result<(), Box
 
     loop {
         if shutdown.load(Ordering::Relaxed) {
+            info!("Shutting down EK1100 client");
             break;
         }
         group.tx_rx(&client).await.expect("Tx/Rx");
@@ -129,14 +130,12 @@ pub async fn client(interface: &str, mut rx: Receiver<EthCmd>) -> Result<(), Box
                 let (i, o) = slave.io_raw_mut();
                 match msg.cmd {
                     Command::SetState(state) => {
-                        info!("SetState with new state: {state} called on EK1100 card: {card_id}");
                         let old_state = o[0];
                         let shift = msg.idx;
                         o[0] = old_state & !(1 << shift) | (u8::from(state) << shift);
                     }
                     Command::GetState(tx) => {
                         let state = i[0];
-                        info!("GetState with response: {state} called on EK1100 card: {card_id}");
                         tx.send(state).unwrap();
                     }
                 }
