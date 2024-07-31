@@ -2,6 +2,7 @@ use crate::components::clear_core_io::{DigitalInput, HBridgeState};
 use crate::components::clear_core_motor::{ClearCoreMotor, Status};
 use crate::subsystems::linear_actuator::SimpleLinearActuator;
 use std::error::Error;
+use std::fmt::Debug;
 use tokio::sync::mpsc::Receiver;
 use std::time::Duration;
 use log::error;
@@ -35,17 +36,13 @@ impl BagGripper {
     }
     
     pub async fn timed_open(&mut self, time: Duration) {
-        let mut interval = interval(time);
         self.actuator.actuate(HBridgeState::Pos).await;
-        interval.tick().await;
-        interval.tick().await;
+        sleep(time).await;
     }
     
     pub async fn timed_close(&mut self, time: Duration) {
-        let mut interval = interval(time);
         self.actuator.actuate(HBridgeState::Neg).await;
-        interval.tick().await;
-        interval.tick().await;
+        sleep(time).await;
     }
     
     pub async fn rip_bag(&self) -> Result<(), Box<dyn Error>> {
@@ -67,21 +64,23 @@ impl BagDispenser {
         Self { motor, photo_eye }
     }
     pub async fn dispense(&self) -> Result<(), Box<dyn Error>> {
+        let mut interval = interval(Duration::from_millis(100));
         self.motor.set_velocity(3.0).await;
         let _ = self.motor
             .relative_move(100.0)
             .await;
         while !self.photo_eye.get_state().await {
-            sleep(Duration::from_millis(100)).await;
+            interval.tick().await;
         }
         self.motor.abrupt_stop().await;
         Ok(())
     }
     pub async fn pull_back(&self) -> Result<(), Box<dyn Error>> {
+        let mut interval = interval(Duration::from_millis(100));
         self.motor.set_velocity(1.0).await;
-        self.motor.relative_move(-4.4).await.unwrap();
+        self.motor.relative_move(-4.6).await.unwrap();
         while self.motor.get_status().await == Status::Moving {
-            sleep(Duration::from_millis(100)).await;
+            interval.tick().await;
         }
         Ok(())
     }
