@@ -48,7 +48,7 @@ pub enum Setpoint {
     Weight(WeightedDispense),
     Timed(Duration),
 }
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct DispenseParameters {
     pub parameters: Parameters,
@@ -200,16 +200,17 @@ impl Dispenser {
                         //     self.motor.relative_move(-retract).await.unwrap();
                         //     self.motor.wait_for_move(Duration::from_millis(50)).await.unwrap();
                         // }
-                        let check_weight = self.get_median_weight(50, self.parameters.sample_rate).await;
+                        let check_weight = self.get_median_weight(30, self.parameters.sample_rate).await;
                         if check_weight < target_weight + self.parameters.stop_offset {
                             if let Some(retract) = self.parameters.retract_after {
+                                self.motor.set_velocity(self.parameters.motor_speed).await;
                                 self.motor.relative_move(-retract).await.unwrap();
                                 self.motor.wait_for_move(Duration::from_millis(10)).await.unwrap();
                             }
                             break DispenseEndCondition::WeightAchieved(init_weight-check_weight)
                         }
                         self.motor.relative_move(10.).await.unwrap();
-                        tokio::time::sleep(Duration::from_millis(250)).await
+                        tokio::time::sleep(Duration::from_millis(500)).await
                     }
                 };
                 self.motor.abrupt_stop().await;

@@ -2,12 +2,13 @@ use crate::components::clear_core_io::{DigitalInput, HBridgeState};
 use crate::components::clear_core_motor::{ClearCoreMotor, Status};
 use crate::subsystems::linear_actuator::SimpleLinearActuator;
 use std::error::Error;
+use std::fmt::Debug;
 use tokio::sync::mpsc::Receiver;
 use std::time::Duration;
 use log::error;
 use tokio::join;
 use tokio::sync::mpsc::Sender;
-use tokio::time::sleep;
+use tokio::time::{interval, sleep};
 
 pub struct BagGripper {
     motor: ClearCoreMotor,
@@ -33,6 +34,17 @@ impl BagGripper {
         self.actuator.actuate(HBridgeState::Neg).await;
         sleep(Duration::from_secs_f64(4.0)).await;
     }
+    
+    pub async fn timed_open(&mut self, time: Duration) {
+        self.actuator.actuate(HBridgeState::Pos).await;
+        sleep(time).await;
+    }
+    
+    pub async fn timed_close(&mut self, time: Duration) {
+        self.actuator.actuate(HBridgeState::Neg).await;
+        sleep(time).await;
+    }
+    
     pub async fn rip_bag(&self) -> Result<(), Box<dyn Error>> {
         for pos in self.positions.as_slice() {
             self.motor.relative_move(*pos).await.unwrap();
@@ -52,21 +64,23 @@ impl BagDispenser {
         Self { motor, photo_eye }
     }
     pub async fn dispense(&self) -> Result<(), Box<dyn Error>> {
+        let mut interval = interval(Duration::from_millis(100));
         self.motor.set_velocity(3.0).await;
         let _ = self.motor
             .relative_move(100.0)
             .await;
         while !self.photo_eye.get_state().await {
-            sleep(Duration::from_millis(100)).await;
+            interval.tick().await;
         }
         self.motor.abrupt_stop().await;
         Ok(())
     }
     pub async fn pull_back(&self) -> Result<(), Box<dyn Error>> {
-        self.motor.set_velocity(1.5).await;
-        self.motor.relative_move(-4.5).await.unwrap();
+        let mut interval = interval(Duration::from_millis(100));
+        self.motor.set_velocity(1.0).await;
+        self.motor.relative_move(-4.6).await.unwrap();
         while self.motor.get_status().await == Status::Moving {
-            sleep(Duration::from_millis(100)).await;
+            interval.tick().await;
         }
         Ok(())
     }
