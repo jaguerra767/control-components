@@ -47,7 +47,7 @@ impl BagGripper {
     
     pub async fn rip_bag(&self) -> Result<(), Box<dyn Error>> {
         for pos in self.positions.as_slice() {
-            self.motor.relative_move(*pos).await.unwrap();
+            self.motor.absolute_move(*pos).await.unwrap();
             self.motor.wait_for_move(Duration::from_millis(150)).await.unwrap()
         }
         Ok(())
