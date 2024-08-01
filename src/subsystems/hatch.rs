@@ -3,7 +3,7 @@ use crate::components::clear_core_io::{AnalogInput, HBridgeState};
 use crate::subsystems::linear_actuator::{Output, RelayHBridge};
 use std::time::Duration;
 use log::info;
-use tokio::time::Instant;
+use tokio::time::{Instant, MissedTickBehavior};
 
 pub struct Hatch {
     actuator: RelayHBridge,
@@ -31,6 +31,8 @@ impl Hatch {
 
     pub async fn open(&mut self, set_point: isize) {
         let star_time = Instant::now();
+        let mut tick_interval = tokio::time::interval(Duration::from_millis(5));
+        tick_interval.set_missed_tick_behavior(MissedTickBehavior::Skip);
         self.actuator.actuate(HBridgeState::Pos).await;
         while self.actuator.get_feedback().await >= set_point {
             let curr_time = Instant::now();
@@ -38,7 +40,7 @@ impl Hatch {
                 info!("Timed Out!");
                 break;
             }
-            tokio::time::sleep(Duration::from_millis(500)).await;
+            tick_interval.tick().await;
         }
         self.actuator.actuate(HBridgeState::Off).await;
     }
@@ -53,13 +55,15 @@ impl Hatch {
         
         let star_time = Instant::now();
         self.actuator.actuate(HBridgeState::Neg).await;
+        let mut tick_interval = tokio::time::interval(Duration::from_millis(5));
+        tick_interval.set_missed_tick_behavior(MissedTickBehavior::Skip);
         while self.actuator.get_feedback().await <= set_point {
             let curr_time = Instant::now();
             if (curr_time - star_time) > self.timeout {
                 info!("Timed Out!");
                 break;
             }
-            tokio::time::sleep(Duration::from_millis(500)).await;
+            tick_interval.tick().await;
         }
         self.actuator.actuate(HBridgeState::Off).await;
     }

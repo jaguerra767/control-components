@@ -3,7 +3,7 @@ use crate::components::clear_core_io::{AnalogInput, DigitalOutput, HBridgeState}
 use crate::controllers::ek1100_io::IOCard;
 use std::time::Duration;
 use log::info;
-use tokio::time::Instant;
+use tokio::time::{Instant, MissedTickBehavior};
 use crate::subsystems::linear_actuator::{Output, RelayHBridge};
 
 pub struct Sealer {
@@ -49,12 +49,15 @@ impl Sealer {
     pub async fn extend_actuator(&mut self, set_point: isize) {
         self.actuator.actuate(HBridgeState::Pos).await;
         let star_time = Instant::now();
+        let mut tick_interval = tokio::time::interval(Duration::from_millis(5));
+        tick_interval.set_missed_tick_behavior(MissedTickBehavior::Skip);
         while self.actuator.get_feedback().await <= set_point {
             let curr_time = Instant::now();
             if (curr_time - star_time) > self.timeout {
                 info!("Timed Out!");
                 break;
             }
+            tick_interval.tick().await;
         }
         self.actuator.actuate(HBridgeState::Off).await;
     }
@@ -67,6 +70,8 @@ impl Sealer {
 
     pub async fn retract_actuator(&mut self, set_point: isize) {
         self.actuator.actuate(HBridgeState::Neg).await;
+        let mut tick_interval = tokio::time::interval(Duration::from_millis(5));
+        tick_interval.set_missed_tick_behavior(MissedTickBehavior::Skip);
         let star_time = Instant::now();
         while self.actuator.get_feedback().await >= set_point {
             let curr_time = Instant::now();
@@ -74,6 +79,7 @@ impl Sealer {
                 info!("Timed Out!");
                 break;
             }
+            tick_interval.tick().await;
         }
         self.actuator.actuate(HBridgeState::Off).await;
     }

@@ -5,6 +5,7 @@ pub mod clear_core_motor;
 pub mod load_cell;
 pub mod scale;
 pub mod send_recv;
+mod led;
 
 pub trait Output {
     fn set_state(&self, state: bool) -> impl Future<Output = ()>;

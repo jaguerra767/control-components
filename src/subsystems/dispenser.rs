@@ -8,7 +8,7 @@ use crate::components::scale::ScaleCmd;
 use serde::Deserialize;
 use tokio::sync::mpsc::Sender;
 use tokio::sync::oneshot;
-use tokio::time::{Duration, Instant};
+use tokio::time::{Duration, Instant, MissedTickBehavior};
 
 #[derive(Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -164,6 +164,8 @@ impl Dispenser {
                 //This while keep going while either final weight is none or while final weight is 
                 // not at setpoint
                 // while self.check_final_weight(final_weight, target_weight) {
+                let mut tick_interval = tokio::time::interval(Duration::from_millis(5));
+                tick_interval.set_missed_tick_behavior(MissedTickBehavior::Burst);
                 let end_condition = loop {
 
                     if shutdown.load(Ordering::Relaxed) {
@@ -212,6 +214,7 @@ impl Dispenser {
                         self.motor.relative_move(10.).await.unwrap();
                         tokio::time::sleep(Duration::from_millis(500)).await
                     }
+                    tick_interval.tick().await;
                 };
                 self.motor.abrupt_stop().await;
                 // info!("Dispensed: {:?}", final_weight.unwrap());

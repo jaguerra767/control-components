@@ -26,7 +26,6 @@ impl Scale {
         Self {
             cells,
             cell_coefficients: vec![0.; 4],
-            // cell_coefficients: vec![-5897877.72181665, 5263019.161459, -4005678.071311, 4000763.38549006],
             tare_offset: 0.,
             connected: false
         }
