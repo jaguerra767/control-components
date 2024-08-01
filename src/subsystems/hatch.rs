@@ -1,4 +1,3 @@
-use std::thread::sleep;
 use crate::components::clear_core_io::{AnalogInput, HBridgeState};
 use crate::subsystems::linear_actuator::{Output, RelayHBridge};
 use std::time::Duration;
@@ -15,8 +14,8 @@ impl Hatch {
         Self { actuator, timeout }
     }
 
-    pub fn from_io(ch_a: Output, ch_b: Output, fb: AnalogInput) -> Self {
-        Self::new(RelayHBridge::new((ch_a, ch_b), fb), Duration::from_secs(7))
+    pub fn from_io(ch_a: Output, ch_b: Output, fb: AnalogInput, timeout: Duration) -> Self {
+        Self::new(RelayHBridge::new((ch_a, ch_b), fb), timeout)
     }
 
     pub async fn get_position(&self) -> isize {

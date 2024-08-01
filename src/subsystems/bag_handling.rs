@@ -77,7 +77,7 @@ impl BagDispenser {
     }
     pub async fn pull_back(&self) -> Result<(), Box<dyn Error>> {
         let mut interval = interval(Duration::from_millis(100));
-        self.motor.set_velocity(1.0).await;
+        self.motor.set_velocity(1.5).await;
         self.motor.relative_move(-4.6).await.unwrap();
         while self.motor.get_status().await == Status::Moving {
             interval.tick().await;
