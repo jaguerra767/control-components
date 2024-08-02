@@ -8,7 +8,7 @@ use crate::components::scale::ScaleCmd;
 use serde::Deserialize;
 use tokio::sync::mpsc::Sender;
 use tokio::sync::oneshot;
-use tokio::time::{Duration, Instant, MissedTickBehavior};
+use tokio::time::{Duration, Instant, interval};
 
 #[derive(Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -135,6 +135,7 @@ impl Dispenser {
         let init_time = Instant::now();
         match &self.setpoint {
             Setpoint::Weight(w) => {
+                let mut interval = interval(Duration::from_millis(500));
                 // Set low-pass filter values
                 let filter_period = 1./self.parameters.sample_rate;
                 let filter_rc = 1./(self.parameters.cutoff_frequency * 2. * std::f64::consts::PI);
@@ -143,7 +144,7 @@ impl Dispenser {
 
                 let mut last_sent_motor_cmd = init_time;
 
-                let mut curr_weight = self.get_median_weight(200, self.parameters.sample_rate).await;
+                let mut curr_weight = self.get_median_weight(100, self.parameters.sample_rate).await;
                 let init_weight = curr_weight;
                 // let mut final_weight: Option<f64> = None;
                 // let mut final_weight: f64;
@@ -164,8 +165,6 @@ impl Dispenser {
                 //This while keep going while either final weight is none or while final weight is 
                 // not at setpoint
                 // while self.check_final_weight(final_weight, target_weight) {
-                let mut tick_interval = tokio::time::interval(Duration::from_millis(5));
-                tick_interval.set_missed_tick_behavior(MissedTickBehavior::Burst);
                 let end_condition = loop {
 
                     if shutdown.load(Ordering::Relaxed) {
@@ -202,7 +201,7 @@ impl Dispenser {
                         //     self.motor.relative_move(-retract).await.unwrap();
                         //     self.motor.wait_for_move(Duration::from_millis(50)).await.unwrap();
                         // }
-                        let check_weight = self.get_median_weight(30, self.parameters.sample_rate).await;
+                        let check_weight = self.get_median_weight(15, self.parameters.sample_rate).await;
                         if check_weight < target_weight + self.parameters.stop_offset {
                             if let Some(retract) = self.parameters.retract_after {
                                 self.motor.set_velocity(self.parameters.motor_speed).await;
@@ -212,9 +211,10 @@ impl Dispenser {
                             break DispenseEndCondition::WeightAchieved(init_weight-check_weight)
                         }
                         self.motor.relative_move(10.).await.unwrap();
+                        
+                        interval.tick().await;
                         tokio::time::sleep(Duration::from_millis(500)).await
                     }
-                    tick_interval.tick().await;
                 };
                 self.motor.abrupt_stop().await;
                 // info!("Dispensed: {:?}", final_weight.unwrap());
