@@ -57,18 +57,18 @@ impl BagGripper {
 
 pub struct BagDispenser {
     motor: ClearCoreMotor,
-    photo_eye: DigitalInput,
+    photo_eye: BagSensor,
 }
 
 impl BagDispenser {
-    pub fn new(motor: ClearCoreMotor, photo_eye: DigitalInput) -> Self {
-        Self { motor, photo_eye }
+    pub fn new(motor: ClearCoreMotor, photo_eye_digital_input: DigitalInput) -> Self {
+        Self { motor, photo_eye: BagSensor::new(photo_eye_digital_input) }
     }
     pub async fn dispense(&self) -> Result<(), Box<dyn Error>> {
         let mut interval = interval(Duration::from_millis(100));
         self.motor.set_velocity(3.0).await;
         let _ = self.motor.relative_move(100.0).await;
-        while !self.photo_eye.get_state().await {
+        while !self.photo_eye.photo_eye.get_state().await {
             interval.tick().await;
         }
         self.motor.abrupt_stop().await;
@@ -84,8 +84,9 @@ impl BagDispenser {
         Ok(())
     }
     
-    pub async fn check_photo_eye(&self) -> bool {
-        self.photo_eye.get_state().await
+    pub async fn check_photo_eye(&self) -> BagSensorState {
+        // TODO: i think this may be inverted?
+        self.photo_eye.check().await
     }
 }
 
