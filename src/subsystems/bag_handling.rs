@@ -83,6 +83,10 @@ impl BagDispenser {
         }
         Ok(())
     }
+    
+    pub async fn check_photo_eye(&self) -> bool {
+        self.photo_eye.get_state().await
+    }
 }
 
 pub enum BagSensorState {
