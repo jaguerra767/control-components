@@ -1,4 +1,3 @@
-use log::{info, log, warn};
 use crate::components::clear_core_io::{AnalogInput, DigitalOutput, HBridge, HBridgeState};
 pub use crate::controllers::clear_core::Message;
 use crate::controllers::ek1100_io::IOCard;

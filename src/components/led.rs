@@ -1,17 +1,25 @@
 use crate::components::clear_core_io::DigitalOutput;
 
-pub enum Color{
+#[allow(dead_code)]
+pub enum Color {
     Red,
     Green,
-    Yellow
+    Yellow,
 }
-pub struct Led{
+
+#[allow(dead_code)]
+pub struct Led {
     red_output: DigitalOutput,
-    green_output: DigitalOutput
+    green_output: DigitalOutput,
 }
+
+#[allow(dead_code)]
 impl Led {
     pub fn new(red_output: DigitalOutput, green_output: DigitalOutput) -> Self {
-        Self{red_output, green_output}
+        Self {
+            red_output,
+            green_output,
+        }
     }
 
     pub async fn turn_on(&self, color: Color) {

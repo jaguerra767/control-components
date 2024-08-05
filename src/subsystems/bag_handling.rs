@@ -1,12 +1,10 @@
 use crate::components::clear_core_io::{DigitalInput, HBridgeState};
 use crate::components::clear_core_motor::{ClearCoreMotor, Status};
 use crate::subsystems::linear_actuator::SimpleLinearActuator;
-use std::error::Error;
-use std::fmt::Debug;
-use tokio::sync::mpsc::Receiver;
-use std::time::Duration;
 use log::error;
-use tokio::join;
+use std::error::Error;
+use std::time::Duration;
+use tokio::sync::mpsc::Receiver;
 use tokio::sync::mpsc::Sender;
 use tokio::time::{interval, sleep};
 
@@ -34,21 +32,24 @@ impl BagGripper {
         self.actuator.actuate(HBridgeState::Neg).await;
         sleep(Duration::from_secs_f64(4.0)).await;
     }
-    
+
     pub async fn timed_open(&mut self, time: Duration) {
         self.actuator.actuate(HBridgeState::Pos).await;
         sleep(time).await;
     }
-    
+
     pub async fn timed_close(&mut self, time: Duration) {
         self.actuator.actuate(HBridgeState::Neg).await;
         sleep(time).await;
     }
-    
+
     pub async fn rip_bag(&self) -> Result<(), Box<dyn Error>> {
         for pos in self.positions.as_slice() {
             self.motor.absolute_move(*pos).await.unwrap();
-            self.motor.wait_for_move(Duration::from_millis(150)).await.unwrap()
+            self.motor
+                .wait_for_move(Duration::from_millis(150))
+                .await
+                .unwrap()
         }
         Ok(())
     }
@@ -66,9 +67,7 @@ impl BagDispenser {
     pub async fn dispense(&self) -> Result<(), Box<dyn Error>> {
         let mut interval = interval(Duration::from_millis(100));
         self.motor.set_velocity(3.0).await;
-        let _ = self.motor
-            .relative_move(100.0)
-            .await;
+        let _ = self.motor.relative_move(100.0).await;
         while !self.photo_eye.get_state().await {
             interval.tick().await;
         }
@@ -88,13 +87,15 @@ impl BagDispenser {
 
 pub enum BagSensorState {
     Bagless,
-    Bagful
+    Bagful,
 }
 pub struct BagSensor {
-    photo_eye: DigitalInput
+    photo_eye: DigitalInput,
 }
 impl BagSensor {
-    pub fn new(photo_eye: DigitalInput) -> Self { Self { photo_eye } }
+    pub fn new(photo_eye: DigitalInput) -> Self {
+        Self { photo_eye }
+    }
 
     pub async fn check(&self) -> BagSensorState {
         match self.photo_eye.get_state().await {
@@ -117,14 +118,14 @@ impl BagSensor {
                 BagSensorState::Bagful => (),
                 BagSensorState::Bagless => {
                     error!("Lost Bag");
-                    return Err(BagError::LostBag)
+                    return Err(BagError::LostBag);
                 }
             }
         }
         Ok(())
     }
 
-    pub async fn actor(&self, ) -> Result<(), BagError> {
+    pub async fn actor(&self) -> Result<(), BagError> {
         let (tx, rx) = tokio::sync::mpsc::channel(10);
         let photo_eye = self.photo_eye.clone();
         let watcher = tokio::spawn(Self::watcher(photo_eye, tx));
