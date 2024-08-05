@@ -115,28 +115,35 @@ impl Dispenser {
             None
         }
     }
-    // fn at_setpoint(&self, current_weight: f64, target_weight: f64) -> Option<f64> {
-    //     if current_weight < target_weight + self.parameters.check_offset {
-    //         Some(current_weight)
-    //     } else {
-    //         None
-    //     }
-    // }
-    // fn check_final_weight(&self, final_weight: Option<f64>, target_weight: f64) -> bool {
-    //     info!("Checking final weight");
-    //     if let Some(weight) = final_weight{
-    //         weight < target_weight - self.parameters.stop_offset
-    //     } else {
-    //         false
-    //     }
-    // }
+    
+    async fn retract_before(&self) {
+        if let Some(retract) = self.parameters.retract_before {
+            self.motor
+                .relative_move(-retract)
+                .await
+                .expect("Motor faulted");
+            self.motor
+                .wait_for_move(Duration::from_millis(50))
+                .await
+                .unwrap();
+        }
+    }
+    
+    async fn retract_after(&self) {
+        if let Some(retract) = self.parameters.retract_after {
+            self.motor
+                .relative_move(-retract)
+                .await
+                .expect("Motor faulted");
+        }
+    }
 
     pub async fn dispense(&self, timeout: Duration) {
-        //Initialize dispense tracking vars
         let init_time = Instant::now();
         match &self.setpoint {
             Setpoint::Weight(w) => {
                 let mut interval = interval(Duration::from_millis(500));
+                
                 // Set low-pass filter values
                 let filter_period = 1. / self.parameters.sample_rate;
                 let filter_rc = 1. / (self.parameters.cutoff_frequency * 2. * std::f64::consts::PI);
@@ -149,23 +156,11 @@ impl Dispenser {
                     .get_median_weight(100, self.parameters.sample_rate)
                     .await;
                 let init_weight = curr_weight;
-                // let mut final_weight: Option<f64> = None;
-                // let mut final_weight: f64;
                 let target_weight = init_weight - w.setpoint;
 
-                //Starting motor moves
+                // Starting motor moves
                 self.motor.set_velocity(self.parameters.motor_speed).await;
-                if let Some(retract) = self.parameters.retract_before {
-                    self.motor
-                        .relative_move(-retract)
-                        .await
-                        .expect("Motor faulted");
-                    self.motor
-                        .wait_for_move(Duration::from_millis(50))
-                        .await
-                        .unwrap();
-                    self.motor.abrupt_stop().await;
-                }
+                self.retract_before().await;
                 self.motor.relative_move(100.).await.expect("Motor faulted");
 
                 let shutdown = Arc::new(AtomicBool::new(false));
@@ -173,26 +168,16 @@ impl Dispenser {
                     .expect("Register hook");
                 //This while keep going while either final weight is none or while final weight is
                 // not at setpoint
-                // while self.check_final_weight(final_weight, target_weight) {
                 let end_condition = loop {
                     if shutdown.load(Ordering::Relaxed) {
                         self.motor.abrupt_stop().await;
                         break DispenseEndCondition::Failed;
                     }
 
-                    // if self.at_setpoint(curr_weight, target_weight).is_some() {
-                    //     self.motor.abrupt_stop().await;
-                    //     let weight = self.get_median_weight(150, self.parameters.sample_rate).await;
-                    //     // final_weight = Some(weight);
-                    //     // final_weight = weight;
-                    // }
-
                     let current_time = Instant::now();
                     if current_time - init_time > timeout {
                         self.motor.abrupt_stop().await;
                         error!("Dispense timed out!");
-                        // final_weight = Some(curr_weight);
-                        // final_weight = curr_weight;
                         break DispenseEndCondition::Timeout(init_weight - curr_weight);
                     }
                     curr_weight = filter_a * self.get_weight().await + filter_b * curr_weight;
@@ -204,41 +189,27 @@ impl Dispenser {
                     if curr_weight < target_weight + self.parameters.check_offset {
                         info!("Check offset reached");
                         self.motor.abrupt_stop().await;
-                        // if let Some(retract) = self.parameters.retract_after {
-                        //     self.motor.relative_move(-retract).await.unwrap();
-                        //     self.motor.wait_for_move(Duration::from_millis(50)).await.unwrap();
-                        // }
                         let check_weight = self
                             .get_median_weight(15, self.parameters.sample_rate)
                             .await;
                         if check_weight < target_weight + self.parameters.stop_offset {
-                            if let Some(retract) = self.parameters.retract_after {
-                                self.motor.set_velocity(self.parameters.motor_speed).await;
-                                self.motor.relative_move(-retract).await.unwrap();
-                                self.motor
-                                    .wait_for_move(Duration::from_millis(10))
-                                    .await
-                                    .unwrap();
-                            }
+                            self.retract_after().await;
                             break DispenseEndCondition::WeightAchieved(init_weight - check_weight);
                         }
                         self.motor.relative_move(10.).await.unwrap();
-
-                        interval.tick().await;
-                        tokio::time::sleep(Duration::from_millis(500)).await
                     }
+                    interval.tick().await;
                 };
                 self.motor.abrupt_stop().await;
-                // info!("Dispensed: {:?}", final_weight.unwrap());
                 info!("End Condition: {:?}", end_condition);
-                // info!("Initial Weight: {:?}", init_weight);
-                // info!("Final Weight: {:?}", curr_weight);
             }
             Setpoint::Timed(d) => {
                 self.motor.set_velocity(self.parameters.motor_speed).await;
+                self.retract_before().await;
                 self.motor.relative_move(100.).await.expect("Motor faulted");
                 tokio::time::sleep(*d).await;
                 self.motor.abrupt_stop().await;
+                self.retract_after().await;
             }
         }
     }
