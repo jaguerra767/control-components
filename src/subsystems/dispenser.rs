@@ -193,7 +193,6 @@ impl Dispenser {
                             .get_median_weight(30, self.parameters.sample_rate)
                             .await;
                         if check_weight < target_weight + self.parameters.stop_offset {
-                            self.retract_after().await;
                             break DispenseEndCondition::WeightAchieved(init_weight - check_weight);
                         }
                         self.motor.relative_move(10.).await.unwrap();
@@ -201,6 +200,7 @@ impl Dispenser {
                     interval.tick().await;
                 };
                 self.motor.abrupt_stop().await;
+                self.retract_after().await;
                 info!("End Condition: {:?}", end_condition);
             }
             Setpoint::Timed(d) => {
