@@ -7,7 +7,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use tokio::sync::mpsc::Sender;
 use tokio::sync::oneshot;
-use tokio::time::{interval, Duration, Instant};
+use tokio::time::{interval, Duration, Instant, MissedTickBehavior};
 
 #[derive(Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -143,7 +143,7 @@ impl Dispenser {
         match &self.setpoint {
             Setpoint::Weight(w) => {
                 let mut interval = interval(Duration::from_millis(500));
-                
+                interval.set_missed_tick_behavior(MissedTickBehavior::Skip);
                 // Set low-pass filter values
                 let filter_period = 1. / self.parameters.sample_rate;
                 let filter_rc = 1. / (self.parameters.cutoff_frequency * 2. * std::f64::consts::PI);
