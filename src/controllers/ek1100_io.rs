@@ -1,7 +1,7 @@
-use std::error::Error;
 use ethercrab::std::{ethercat_now, tx_rx_task};
 use ethercrab::{Client, ClientConfig, PduStorage, Timeouts};
 use log::info;
+use std::error::Error;
 use std::future::Future;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
@@ -22,11 +22,10 @@ pub enum Command {
     GetState(oneshot::Sender<u8>),
 }
 
-
 pub struct EthCmd {
     pub card_id: usize,
     pub idx: u8,
-    pub cmd: Command
+    pub cmd: Command,
 }
 
 #[derive(Clone, Debug)]
@@ -39,7 +38,11 @@ impl IOCard {
         Self { tx }
     }
     pub async fn set_state(&mut self, card_id: usize, idx: u8, state: bool) {
-        let msg = EthCmd {card_id, idx, cmd: Command::SetState(state)};
+        let msg = EthCmd {
+            card_id,
+            idx,
+            cmd: Command::SetState(state),
+        };
         self.tx.send(msg).await.unwrap();
     }
 }
@@ -55,8 +58,12 @@ impl Controller {
     }
 
     pub fn with_client(
-        interface: &'static str, io_qty: u8
-    ) -> (Self, impl Future<Output = Result<(), Box<dyn Error + Send + Sync>>>) {
+        interface: &'static str,
+        io_qty: u8,
+    ) -> (
+        Self,
+        impl Future<Output = Result<(), Box<dyn Error + Send + Sync>>>,
+    ) {
         let (tx, rx) = channel(100);
         (Self::new(tx, io_qty), client(interface, rx))
     }
@@ -66,7 +73,10 @@ impl Controller {
     }
 }
 
-pub async fn client(interface: &str, mut rx: Receiver<EthCmd>) -> Result<(), Box<dyn Error + Send + Sync>> {
+pub async fn client(
+    interface: &str,
+    mut rx: Receiver<EthCmd>,
+) -> Result<(), Box<dyn Error + Send + Sync>> {
     println!("Hello from client");
     let (pdu_tx, pdu_rx, pdu_loop) = PDU_STORAGE
         .try_split()

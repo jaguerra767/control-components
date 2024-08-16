@@ -1,10 +1,9 @@
-use std::cmp::Ordering;
-use crate::components::clear_core_io::{AnalogInput, DigitalOutput, HBridgeState};
-use crate::controllers::ek1100_io::IOCard;
-use std::time::Duration;
-use log::info;
-use tokio::time::{Instant, MissedTickBehavior};
+use crate::components::clear_core_io::HBridgeState;
 use crate::subsystems::linear_actuator::{Output, RelayHBridge};
+use log::info;
+use std::cmp::Ordering;
+use std::time::Duration;
+use tokio::time::{Instant, MissedTickBehavior};
 
 pub struct Sealer {
     heater: Output,
@@ -15,7 +14,13 @@ pub struct Sealer {
 }
 
 impl Sealer {
-    pub fn new(heater: Output, actuator: RelayHBridge, timeout: Duration, extend_setpoint: isize, retract_setpoint: isize) -> Self {
+    pub fn new(
+        heater: Output,
+        actuator: RelayHBridge,
+        timeout: Duration,
+        extend_setpoint: isize,
+        retract_setpoint: isize,
+    ) -> Self {
         Self {
             heater,
             actuator,
@@ -95,7 +100,7 @@ impl Sealer {
         self.heat(Duration::from_secs_f64(3.0)).await;
         self.absolute_move(self.retract_setpoint).await;
     }
-    
+
     pub async fn timed_move_seal(&mut self, time: Duration) {
         self.timed_extend_actuator(time).await;
         self.heat(Duration::from_secs_f64(3.)).await;

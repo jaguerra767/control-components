@@ -1,7 +1,7 @@
 use crate::components::clear_core_io::{AnalogInput, HBridgeState};
 use crate::subsystems::linear_actuator::{Output, RelayHBridge};
-use std::time::Duration;
 use log::info;
+use std::time::Duration;
 use tokio::time::{Instant, MissedTickBehavior};
 
 pub struct Hatch {
@@ -51,7 +51,6 @@ impl Hatch {
     }
 
     pub async fn close(&mut self, set_point: isize) {
-        
         let star_time = Instant::now();
         self.actuator.actuate(HBridgeState::Neg).await;
         let mut tick_interval = tokio::time::interval(Duration::from_millis(5));

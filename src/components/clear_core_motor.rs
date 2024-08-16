@@ -9,7 +9,7 @@ use tokio::sync::mpsc::Sender;
 use tokio::time::MissedTickBehavior;
 
 const REPLY_IDX: usize = 3;
-const SUCCESSFUL_REPLY: u8 = b'_';
+const _SUCCESSFUL_REPLY: u8 = b'_';
 const FAILED_REPLY: u8 = b'?';
 
 #[derive(Debug, PartialOrd, PartialEq, Serialize)]
@@ -43,7 +43,10 @@ impl ClearCoreMotor {
 
     async fn check_reply(&self, reply: &[u8]) -> Result<(), Status> {
         if reply[REPLY_IDX] == FAILED_REPLY {
-            error!("Response from motor controller: {:?}", reply.to_ascii_lowercase());
+            error!(
+                "Response from motor controller: {:?}",
+                reply.to_ascii_lowercase()
+            );
             Err(self.get_status().await)
         } else {
             Ok(())
@@ -177,27 +180,21 @@ impl ClearCoreMotor {
 
     pub async fn wait_for_move(&self, interval: Duration) -> Result<(), Status> {
         let mut tick_interval = tokio::time::interval(interval);
-        tick_interval.set_missed_tick_behavior(MissedTickBehavior::Skip); 
+        tick_interval.set_missed_tick_behavior(MissedTickBehavior::Skip);
         loop {
-            let status= self.get_status().await;
+            let status = self.get_status().await;
             match status {
                 Status::Moving => {
-                    tick_interval.tick().await; 
-                    continue
-                },
-                Status::Disabled | Status::Faulted | Status::Unknown => {
-                    return Err(status)
-                },
-                Status::Ready => {
-                    break
-                },
-                Status::Enabling => {
-                    tick_interval.tick().await; 
-                    continue
+                    tick_interval.tick().await;
+                    continue;
                 }
-                
+                Status::Disabled | Status::Faulted | Status::Unknown => return Err(status),
+                Status::Ready => break,
+                Status::Enabling => {
+                    tick_interval.tick().await;
+                    continue;
+                }
             }
-            
         }
         Ok(())
     }

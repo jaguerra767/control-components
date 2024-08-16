@@ -184,6 +184,7 @@ async fn test_controller() {
 #[tokio::test]
 async fn test_controller_with_client() {
     use env_logger::Env;
+    use log::{error, info};
     use std::net::SocketAddr;
     use std::sync::atomic::AtomicBool;
     use std::sync::Arc;
@@ -192,7 +193,6 @@ async fn test_controller_with_client() {
     use tokio::net::TcpListener;
     use tokio::sync::Mutex;
     use tokio::time::{sleep, Duration};
-    use log::{error, info};
 
     env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
     //We need this MotorBuilder struct to inject the motor scale into the controller, the id part is

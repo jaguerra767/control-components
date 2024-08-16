@@ -1,12 +1,11 @@
 use crate::components::load_cell::LoadCell;
-use linalg::MatrixError;
 use log::info;
+use std::array;
 use std::error::Error;
 use std::future::Future;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::thread::sleep;
-use std::{array, io};
 use tokio::sync::mpsc::error::TryRecvError;
 use tokio::sync::mpsc::{channel, Receiver, Sender};
 use tokio::sync::oneshot;
@@ -17,7 +16,7 @@ pub struct Scale {
     cells: [LoadCell; 4],
     cell_coefficients: Vec<f64>,
     tare_offset: f64,
-    connected: bool
+    connected: bool,
 }
 
 impl Scale {
@@ -27,11 +26,16 @@ impl Scale {
             cells,
             cell_coefficients: vec![0.; 4],
             tare_offset: 0.,
-            connected: false
+            connected: false,
         }
     }
 
-    pub fn actor_tx_pair(self) -> (Sender<ScaleCmd>,impl Future<Output = Result<(), Box<dyn Error + Send + Sync>>> ) {
+    pub fn actor_tx_pair(
+        self,
+    ) -> (
+        Sender<ScaleCmd>,
+        impl Future<Output = Result<(), Box<dyn Error + Send + Sync>>>,
+    ) {
         let (tx, rx) = channel(100);
         (tx, actor(self, rx))
     }
@@ -140,7 +144,6 @@ impl Scale {
 
         Ok((scale, times, weights))
     }
-    
 }
 
 fn dot(vec1: Vec<f64>, vec2: Vec<f64>) -> f64 {
@@ -154,7 +157,10 @@ fn dot(vec1: Vec<f64>, vec2: Vec<f64>) -> f64 {
 
 pub struct ScaleCmd(pub oneshot::Sender<f64>);
 
-pub async fn actor(mut scale: Scale, mut receiver: Receiver<ScaleCmd>) -> Result<(), Box<dyn Error + Send + Sync>> {
+pub async fn actor(
+    mut scale: Scale,
+    mut receiver: Receiver<ScaleCmd>,
+) -> Result<(), Box<dyn Error + Send + Sync>> {
     let time_start = Instant::now();
     while !scale.connected {
         info!("Waiting for scale connection...");
@@ -196,18 +202,12 @@ pub async fn actor(mut scale: Scale, mut receiver: Receiver<ScaleCmd>) -> Result
     }
     Ok(())
 }
-#[derive(Debug)]
-pub enum ScaleError {
-    LoadCellError,
-    MatrixError(MatrixError),
-    IoError(io::Error),
-}
 
 #[test]
 fn calibrate() {
-    let mut scale = Scale::new(716623);
+    let mut scale = Scale::new(716692);
     scale = scale.connect().unwrap();
-    let (scale, readings) = Scale::get_medians(scale, Duration::from_secs(20), 50.);
+    let (_scale, readings) = Scale::get_medians(scale, Duration::from_secs(20), 50.);
     println!("Cell Medians: {:?}", readings)
 }
 
