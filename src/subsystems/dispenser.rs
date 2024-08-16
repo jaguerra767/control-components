@@ -165,7 +165,7 @@ impl Dispenser {
                 // not at setpoint
                 // while self.check_final_weight(final_weight, target_weight) {
                 let mut tick_interval = tokio::time::interval(Duration::from_millis(5));
-                tick_interval.set_missed_tick_behavior(MissedTickBehavior::Burst);
+                tick_interval.set_missed_tick_behavior(MissedTickBehavior::Skip);
                 let end_condition = loop {
 
                     if shutdown.load(Ordering::Relaxed) {
