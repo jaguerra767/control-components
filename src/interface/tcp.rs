@@ -14,6 +14,7 @@ pub async fn client<T: ToSocketAddrs>(
     let mut stream = TcpStream::connect(addr).await?;
     let peer_addr = stream.peer_addr().expect(" Peer not connected");
     info!("Client connected with peer address: {peer_addr}");
+    println!("DEBUG: peer address is {peer_addr}");
     let mut tick_interval = tokio::time::interval(Duration::from_millis(5));
     tick_interval.set_missed_tick_behavior(MissedTickBehavior::Skip);
     while let Some(message) = msg.recv().await {
