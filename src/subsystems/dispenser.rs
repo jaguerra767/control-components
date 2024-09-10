@@ -88,7 +88,7 @@ impl Dispenser {
         let mut buffer = Vec::with_capacity(samples);
         let mut interval = interval(Duration::from_secs_f64(1./sample_rate));
         interval.set_missed_tick_behavior(MissedTickBehavior::Skip);
-        for i in 0..=samples {
+        for _sample in 0..=samples {
             let weight = self.get_weight().await;
             buffer.push(weight);
             interval.tick().await;
@@ -163,7 +163,7 @@ impl Dispenser {
                 let mut last_sent_motor_cmd = init_time;
 
                 let mut curr_weight = self
-                    .get_median_weight(100, self.parameters.sample_rate)
+                    .get_median_weight(50, self.parameters.sample_rate)
                     .await;
                 println!("DEBUG D: {:?}", Instant::now()-init_time);
                 let init_weight = curr_weight;
