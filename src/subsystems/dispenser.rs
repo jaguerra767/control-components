@@ -235,7 +235,15 @@ async fn dispense() {
     scale = scale.connect().unwrap();
     let (scale_tx, scale_actor) = scale.actor_tx_pair();
     tokio::spawn(scale_actor);
-    
-    let dispenser = Dispenser::new(cc.get_motor(0), Setpoint::Weight(WeightedDispense { setpoint: 10., timeout: Duration::from_secs(5) }), Parameters::default(), scale_tx);
+    let parameters = Parameters {
+        motor_speed: 0.3,
+        sample_rate: 50.,
+        cutoff_frequency: 2.,
+        check_offset: 5.,
+        stop_offset: 3.,
+        retract_before: None,
+        retract_after: Some(0.1),
+    };
+    let dispenser = Dispenser::new(cc.get_motor(0), Setpoint::Weight(WeightedDispense { setpoint: 10., timeout: Duration::from_secs(5) }), parameters, scale_tx);
     dispenser.dispense(Duration::from_secs(10)).await;
 }
