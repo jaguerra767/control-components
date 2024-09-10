@@ -142,27 +142,31 @@ impl Dispenser {
         let init_time = Instant::now();
         match &self.setpoint {
             Setpoint::Weight(w) => {
+                // TODO: maybe make the interval shorter??
+                println!("DEBUG: A");
                 let mut interval = interval(Duration::from_millis(500));
                 interval.set_missed_tick_behavior(MissedTickBehavior::Skip);
                 // Set low-pass filter values
+                println!("DEBUG: B");
                 let filter_period = 1. / self.parameters.sample_rate;
                 let filter_rc = 1. / (self.parameters.cutoff_frequency * 2. * std::f64::consts::PI);
                 let filter_a = filter_period / (filter_period + filter_rc);
                 let filter_b = filter_rc / (filter_period + filter_rc);
-
+                println!("DEBUG: C");
                 let mut last_sent_motor_cmd = init_time;
 
                 let mut curr_weight = self
                     .get_median_weight(100, self.parameters.sample_rate)
                     .await;
+                println!("DEBUG: D");
                 let init_weight = curr_weight;
                 let target_weight = init_weight - w.setpoint;
-
+                println!("DEBUG: E");
                 // Starting motor moves
                 self.motor.set_velocity(self.parameters.motor_speed).await;
                 self.retract_before().await;
                 self.motor.relative_move(100.).await.expect("Motor faulted");
-
+                println!("DEBUG: F");
                 let shutdown = Arc::new(AtomicBool::new(false));
                 signal_hook::flag::register(signal_hook::consts::SIGINT, Arc::clone(&shutdown))
                     .expect("Register hook");
