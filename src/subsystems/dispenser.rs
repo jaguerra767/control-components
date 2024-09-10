@@ -83,8 +83,6 @@ impl Dispenser {
     }
 
     async fn get_median_weight(&self, samples: usize, sample_rate: f64) -> f64 {
-        let start = Instant::now();
-        
         let mut buffer = Vec::with_capacity(samples);
         let mut interval = interval(Duration::from_secs_f64(1./sample_rate));
         interval.set_missed_tick_behavior(MissedTickBehavior::Skip);
@@ -92,9 +90,8 @@ impl Dispenser {
             let weight = self.get_weight().await;
             buffer.push(weight);
             interval.tick().await;
-            println!("DEBUG MED: {:?}", Instant::now()-start);
         }
-        
+
         buffer.sort_by(|a, b| a.partial_cmp(b).unwrap());
         let middle = buffer.len() / 2;
         buffer[middle]
@@ -150,30 +147,30 @@ impl Dispenser {
         match &self.setpoint {
             Setpoint::Weight(w) => {
                 // TODO: maybe make the interval shorter??
-                println!("DEBUG A: {:?}", Instant::now()-init_time);
+
                 let mut interval = interval(Duration::from_millis(500));
                 interval.set_missed_tick_behavior(MissedTickBehavior::Skip);
                 // Set low-pass filter values
-                println!("DEBUG B: {:?}", Instant::now()-init_time);
+
                 let filter_period = 1. / self.parameters.sample_rate;
                 let filter_rc = 1. / (self.parameters.cutoff_frequency * 2. * std::f64::consts::PI);
                 let filter_a = filter_period / (filter_period + filter_rc);
                 let filter_b = filter_rc / (filter_period + filter_rc);
-                println!("DEBUG C: {:?}", Instant::now()-init_time);
+
                 let mut last_sent_motor_cmd = init_time;
 
                 let mut curr_weight = self
                     .get_median_weight(50, self.parameters.sample_rate)
                     .await;
-                println!("DEBUG D: {:?}", Instant::now()-init_time);
+
                 let init_weight = curr_weight;
                 let target_weight = init_weight - w.setpoint;
-                println!("DEBUG E: {:?}", Instant::now()-init_time);
+
                 // Starting motor moves
                 self.motor.set_velocity(self.parameters.motor_speed).await;
                 self.retract_before().await;
                 self.motor.relative_move(100.).await.expect("Motor faulted");
-                println!("DEBUG F: {:?}", Instant::now()-init_time);
+
                 let shutdown = Arc::new(AtomicBool::new(false));
                 signal_hook::flag::register(signal_hook::consts::SIGINT, Arc::clone(&shutdown))
                     .expect("Register hook");
