@@ -1,5 +1,5 @@
 use crate::components::clear_core_motor::ClearCoreMotor;
-use crate::components::scale::ScaleCmd;
+use crate::components::scale::{Scale, ScaleCmd};
 use log::{error, info};
 use serde::Deserialize;
 use std::fmt::Debug;
@@ -8,6 +8,7 @@ use std::sync::Arc;
 use tokio::sync::mpsc::Sender;
 use tokio::sync::oneshot;
 use tokio::time::{interval, Duration, Instant, MissedTickBehavior};
+use crate::controllers::clear_core::{Controller, MotorBuilder};
 
 #[derive(Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -224,4 +225,17 @@ pub enum DispenseEndCondition {
     Timeout(f64),
     WeightAchieved(f64),
     Failed,
+}
+
+#[tokio::test]
+async fn dispense() {
+    let (cc, cl) = Controller::with_client("192.168.1.12", &[MotorBuilder { id: 0, scale: 800}]);
+    tokio::spawn(cl);
+    let mut scale = Scale::new(716692);
+    scale = scale.connect().unwrap();
+    let (scale_tx, scale_actor) = scale.actor_tx_pair();
+    tokio::spawn(scale_actor);
+    
+    let dispenser = Dispenser::new(cc.get_motor(0), Setpoint::Weight(WeightedDispense { setpoint: 10., timeout: Duration::from_secs(5) }), Parameters::default(), scale_tx);
+    dispenser.dispense(Duration::from_secs(10)).await;
 }
