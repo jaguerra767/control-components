@@ -84,11 +84,15 @@ impl Dispenser {
 
     async fn get_median_weight(&self, samples: usize, sample_rate: f64) -> f64 {
         let mut buffer = Vec::with_capacity(samples);
-        for _ in 0..=samples {
+        let mut interval = interval(Duration::from_secs_f64(1./sample_rate));
+        interval.set_missed_tick_behavior(MissedTickBehavior::Skip);
+        for i in 0..=samples {
             let weight = self.get_weight().await;
             buffer.push(weight);
-            tokio::time::sleep(Duration::from_secs_f64(1. / sample_rate)).await;
+            interval.tick().await;
+            println!("DEBUG MED: {:?}", i);
         }
+        
         buffer.sort_by(|a, b| a.partial_cmp(b).unwrap());
         let middle = buffer.len() / 2;
         buffer[middle]
