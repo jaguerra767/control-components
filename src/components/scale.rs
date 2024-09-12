@@ -171,7 +171,8 @@ pub async fn actor(
         tokio::time::sleep(Duration::from_secs(1)).await;
     }
     info!("Load cell amplifier connection successful");
-    let mut tick_interval = tokio::time::interval(Duration::from_millis(100));
+    // Hardset at 100 Hz sample rate
+    let mut tick_interval = tokio::time::interval(Duration::from_millis(10));
     tick_interval.set_missed_tick_behavior(MissedTickBehavior::Skip);
     let shutdown = Arc::new(AtomicBool::new(false));
     signal_hook::flag::register(signal_hook::consts::SIGINT, Arc::clone(&shutdown))
