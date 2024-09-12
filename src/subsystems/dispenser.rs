@@ -148,7 +148,7 @@ impl Dispenser {
             Setpoint::Weight(w) => {
                 // TODO: maybe make the interval shorter??
 
-                let mut interval = interval(Duration::from_millis(500));
+                let mut interval = interval(Duration::from_secs_f64(1./self.parameters.sample_rate));
                 interval.set_missed_tick_behavior(MissedTickBehavior::Skip);
                 // Set low-pass filter values
 
