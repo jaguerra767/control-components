@@ -206,7 +206,7 @@ pub async fn actor(
 
 #[test]
 fn calibrate() {
-    let mut scale = Scale::new(716692);
+    let mut scale = Scale::new(716623);
     scale = scale.connect().unwrap();
     let (_scale, readings) = Scale::get_medians(scale, Duration::from_secs(1), 50.);
     println!("Cell Medians: {:?}", readings)
