@@ -160,7 +160,7 @@ impl Dispenser {
                 let mut last_sent_motor_cmd = init_time;
 
                 let mut curr_weight = self
-                    .get_median_weight(20, self.parameters.sample_rate)
+                    .get_median_weight(100, self.parameters.sample_rate)
                     .await;
 
                 let init_weight = curr_weight;
