@@ -62,7 +62,10 @@ pub struct BagDispenser {
 
 impl BagDispenser {
     pub fn new(motor: ClearCoreMotor, photo_eye_digital_input: DigitalInput) -> Self {
-        Self { motor, photo_eye: BagSensor::new(photo_eye_digital_input) }
+        Self {
+            motor,
+            photo_eye: BagSensor::new(photo_eye_digital_input),
+        }
     }
     pub async fn dispense(&self) -> Result<(), Box<dyn Error>> {
         let mut interval = interval(Duration::from_millis(100));
@@ -83,7 +86,7 @@ impl BagDispenser {
         }
         Ok(())
     }
-    
+
     pub async fn check_photo_eye(&self) -> BagSensorState {
         // TODO: i think this may be inverted?
         self.photo_eye.check().await

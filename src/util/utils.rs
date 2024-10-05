@@ -1,3 +1,25 @@
+pub struct LowPassFilter {
+    a: f64,
+    b: f64,
+    previous_weight: f64,
+}
+
+impl LowPassFilter {
+    pub fn new(sample_rate: f64, cutoff_frequency: f64, initial_weight: f64) -> Self {
+        let period = 1.0 / sample_rate;
+        let rc = 1. / (cutoff_frequency * 2. * std::f64::consts::PI);
+        Self {
+            a: period / (period + rc),
+            b: rc / (period + rc),
+            previous_weight: initial_weight,
+        }
+    }
+
+    pub fn apply(&mut self, value: f64) -> f64 {
+        self.previous_weight = self.a * value + self.b * self.previous_weight;
+        self.previous_weight
+    }
+}
 pub const fn make_prefix(device_type: u8, device_id: u8) -> [u8; 3] {
     [2, device_type, device_id + 48]
 }
@@ -24,6 +46,16 @@ pub fn ascii_to_int(bytes: &[u8]) -> isize {
     int * sign
 }
 
+pub fn dot_product(a: &[f64], b: &[f64]) -> f64 {
+    assert_eq!(a.len(), b.len());
+    a.iter().zip(b.iter()).map(|(a, b)| a * b).sum::<f64>()
+}
+
+pub fn median(weights: &mut [f64]) -> f64 {
+    weights.sort_by(|a, b| a.partial_cmp(b).unwrap());
+    let middle = weights.len() / 2;
+    weights[middle]
+}
 #[cfg(test)]
 #[test]
 fn test_make_prefix() {

@@ -1,6 +1,6 @@
 use crate::controllers::clear_core::Message;
-use std::future::Future;
 use log::error;
+use std::future::Future;
 use tokio::sync::{mpsc, oneshot};
 
 pub trait SendRecv {
@@ -15,10 +15,7 @@ pub trait SendRecv {
                 buffer: buffer.to_vec(),
                 response: resp_tx,
             };
-            if let Err(e) = self
-                .get_sender()
-                .send(msg)
-                .await {
+            if let Err(e) = self.get_sender().send(msg).await {
                 error!("DEBUG {:?}", e);
             }
             resp_rx.await.expect("No MSG from client")

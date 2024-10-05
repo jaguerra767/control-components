@@ -1,299 +1,252 @@
 use crate::components::load_cell::LoadCell;
-use log::info;
-use std::array;
-use std::error::Error;
-use std::future::Future;
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Arc;
-use std::thread::sleep;
-use tokio::sync::mpsc::error::TryRecvError;
-use tokio::sync::mpsc::{channel, Receiver, Sender};
-use tokio::sync::oneshot;
-use tokio::time::{Duration, Instant, MissedTickBehavior};
+use crate::util::utils::{dot_product, median};
+use std::sync::mpsc::{channel, Receiver, Sender};
+use std::time::{Duration, Instant};
+use std::{array, thread};
 
-pub type DiagnoseResult = Result<(Scale, Vec<Duration>, Vec<f64>), Box<dyn Error>>;
-pub struct Scale {
+struct Scale {
+    phidget_id: i32,
+    receiver: Receiver<ScaleMessage>,
     cells: [LoadCell; 4],
-    cell_coefficients: Vec<f64>,
+    cell_coefficients: [f64; 4],
     tare_offset: f64,
-    connected: bool,
+}
+
+enum ScaleMessage {
+    UpdateCoefficients([f64; 4]),
+    GetWeight {
+        reply: Sender<f64>,
+    },
+    GetMedianWeight {
+        sample_rate: f64,
+        time: Duration,
+        reply: Sender<f64>,
+    },
+    GetMedianWeights {
+        sample_rate: f64,
+        time: Duration,
+        reply: Sender<Vec<f64>>,
+    },
 }
 
 impl Scale {
-    pub fn new(phidget_id: i32) -> Self {
+    fn new(phidget_id: i32, receiver: Receiver<ScaleMessage>) -> Self {
         let cells: [LoadCell; 4] = array::from_fn(|i| LoadCell::new(phidget_id, i as i32));
+        let cell_coefficients: [f64; 4] = [0.0; 4];
         Self {
+            phidget_id,
+            receiver,
             cells,
-            cell_coefficients: vec![0.; 4],
+            cell_coefficients,
             tare_offset: 0.,
-            connected: false,
         }
     }
 
-    pub fn actor_tx_pair(
-        self,
-    ) -> (
-        Sender<ScaleCmd>,
-        impl Future<Output = Result<(), Box<dyn Error + Send + Sync>>>,
-    ) {
-        let (tx, rx) = channel(100);
-        (tx, actor(self, rx))
-    }
-
-    pub fn connect(mut self) -> Result<Self, Box<dyn Error>> {
-        for cell in 0..self.cells.len() {
-            self.cells[cell].connect()?;
+    fn connect(&mut self) {
+        for lc in &mut self.cells {
+            lc.connect().unwrap_or_else(|_| {
+                panic!(
+                    "Failed to connect to load cell in phidget: {}",
+                    self.phidget_id
+                )
+            });
         }
-        self.connected = true;
-        Ok(self)
     }
 
-    fn get_readings(scale: Self) -> Result<(Self, Vec<f64>), Box<dyn Error>> {
+    fn update_coefficients(&mut self, coefficients: [f64; 4]) {
+        self.cell_coefficients = coefficients;
+    }
+    fn get_readings(&self) -> Vec<f64> {
         // Gets each load cell reading from Phidget
         // and returns them in a matrix.
-        let readings: Vec<f64> = scale
-            .cells
+        self.cells
             .as_slice()
             .iter()
-            .map(|cell| cell.get_reading().unwrap())
-            .collect();
-        Ok((scale, readings))
+            .map(|cell| cell.get_reading().expect("Failed to get reading"))
+            .collect()
     }
 
-    pub fn live_weigh(mut scale: Self) -> Result<(Self, f64), Box<dyn Error>> {
+    fn get_weight(&self) -> f64 {
         // Gets the instantaneous weight measurement
-        // from the scale by taking the sum of each
-        // load cell's reading, weighted by its
-        // coefficient.
-        let readings: Vec<f64>;
-        (scale, readings) = Scale::get_readings(scale)?;
-        let weight = dot(readings, scale.cell_coefficients.clone()) - scale.tare_offset;
-        Ok((scale, weight))
+        let readings = self.get_readings();
+        dot_product(readings.as_slice(), self.cell_coefficients.as_slice()) - self.tare_offset
     }
 
-    pub fn weight_by_median(
-        mut scale: Self,
-        time: Duration,
-        sample_rate: usize,
-    ) -> Result<(Self, f64), Box<dyn Error>> {
-        let mut weights = Vec::new();
-        let delay = Duration::from_secs_f64(1. / sample_rate as f64);
-        let start_time = Instant::now();
-        scale = loop {
-            if Instant::now() - start_time > time {
-                break scale;
+    fn get_median_weight(&self, sample_rate: f64, time: Duration) -> f64 {
+        let samples = (sample_rate * time.as_secs_f64()) as usize;
+        let interval = Duration::from_secs_f64(1. / sample_rate);
+        let mut weights = Vec::with_capacity(samples);
+        let mut last_cycle_time = Instant::now();
+        while weights.len() < samples {
+            let current_time = Instant::now();
+            if (current_time - last_cycle_time) > interval {
+                let weight = self.get_weight();
+                weights.push(weight);
+                last_cycle_time = current_time;
             }
-            let weight: f64;
-            (scale, weight) = Scale::live_weigh(scale)?;
-            weights.push(weight);
-            sleep(delay);
-        };
-        Ok((scale, Scale::median(&mut weights)))
+        }
+        median(&mut weights)
     }
 
-    fn median(weights: &mut [f64]) -> f64 {
-        weights.sort_by(|a, b| a.partial_cmp(b).unwrap());
-        let middle = weights.len() / 2;
-        weights[middle]
-    }
-
-    pub fn get_medians(scale: Self, time: Duration, sample_rate: f64) -> (Self, Vec<f64>) {
-        let mut readings: Vec<Vec<f64>> = vec![vec![]; 4];
+    fn get_median_weights(&self, sample_rate: f64, time: Duration) -> Vec<f64> {
+        let mut samples = (sample_rate * time.as_secs_f64()) as usize;
+        let interval = Duration::from_secs_f64(1. / sample_rate);
+        let mut readings: Vec<Vec<f64>> = vec![vec![0.; samples]; 4];
         let mut medians = vec![0.; 4];
-        let delay = Duration::from_secs_f64(1. / sample_rate);
-        let start_time = Instant::now();
-        loop {
-            let curr_time = Instant::now();
-            if curr_time - start_time > time {
-                break;
+        let mut last_cycle_time = Instant::now();
+        while samples > 0 {
+            let current_time = Instant::now();
+            if (current_time - last_cycle_time) > interval {
+                for (idx, cell) in self.cells.iter().enumerate().take(self.cells.len()) {
+                    readings[idx].push(cell.get_reading().expect("Failed to get reading"))
+                }
+                for cell in 0..self.cells.len() {
+                    medians[cell] = median(&mut readings[cell]);
+                }
+                last_cycle_time = current_time;
+                samples -= 1;
             }
-
-            for (idx, cell) in scale.cells.iter().enumerate().take(scale.cells.len()) {
-                readings[idx].push(cell.get_reading().expect("Failed to get reading"))
-            }
-            sleep(delay);
         }
-        for cell in 0..scale.cells.len() {
-            medians[cell] = Scale::median(&mut readings[cell]);
-        }
-        (scale, medians)
+        medians
     }
 
-    pub fn change_coefficients(mut scale: Self, coefficients: Vec<f64>) -> Self {
-        scale.cell_coefficients = coefficients;
-        scale
-    }
-
-    pub fn diagnose(mut scale: Self, duration: Duration, sample_rate: usize) -> DiagnoseResult {
-        let mut times = Vec::new();
-        let mut weights = Vec::new();
-        let data_interval = Duration::from_secs_f64(1. / sample_rate as f64);
-        let init_time = Instant::now();
-
-        scale = loop {
-            if Instant::now() - init_time > duration {
-                break scale;
+    fn handle_message(&mut self, message: ScaleMessage) {
+        match message {
+            ScaleMessage::UpdateCoefficients(coefficients) => {
+                self.update_coefficients(coefficients)
             }
-            let weight: f64;
-            (scale, weight) = Scale::live_weigh(scale)?;
-            let time = Instant::now() - init_time;
-            times.push(time);
-            weights.push(weight);
-            sleep(data_interval);
-        };
-
-        Ok((scale, times, weights))
+            ScaleMessage::GetWeight { reply } => {
+                let weight = self.get_weight();
+                reply.send(weight).unwrap();
+            }
+            ScaleMessage::GetMedianWeight {
+                sample_rate,
+                time,
+                reply,
+            } => {
+                let weight = self.get_median_weight(sample_rate, time);
+                reply.send(weight).unwrap();
+            }
+            ScaleMessage::GetMedianWeights {
+                sample_rate,
+                time,
+                reply,
+            } => {
+                let weights = self.get_median_weights(sample_rate, time);
+                reply.send(weights).unwrap();
+            }
+        }
     }
 }
 
-fn dot(vec1: Vec<f64>, vec2: Vec<f64>) -> f64 {
-    assert_eq!(vec1.len(), vec2.len());
-    let mut sum = 0.;
-    for elem in 0..vec1.len() {
-        sum += vec1[elem] * vec2[elem];
+fn run_scale(mut scale: Scale) {
+    scale.connect();
+    while let Ok(message) = scale.receiver.recv() {
+        scale.handle_message(message);
     }
-    sum
 }
 
-pub struct ScaleCmd(pub oneshot::Sender<f64>);
+#[derive(Clone)]
+pub struct ScaleHandle {
+    sender: Sender<ScaleMessage>,
+}
 
-pub async fn actor(
-    mut scale: Scale,
-    mut receiver: Receiver<ScaleCmd>,
-) -> Result<(), Box<dyn Error + Send + Sync>> {
-    let time_start = Instant::now();
-    while !scale.connected {
-        info!("Waiting for scale connection...");
-        let current_time = Instant::now();
-        if current_time - time_start > Duration::from_secs(20) {
-            panic!("Failed to connect load cells");
-        }
-        tokio::time::sleep(Duration::from_secs(1)).await;
+impl ScaleHandle {
+    pub fn new(phidget_id: i32) -> Self {
+        let (req_tx, req_rx) = channel();
+        let scale = Scale::new(phidget_id, req_rx);
+        thread::spawn(move || run_scale(scale));
+        Self { sender: req_tx }
     }
-    info!("Load cell amplifier connection successful");
-    // Hardset at 100 Hz sample rate
-    let mut tick_interval = tokio::time::interval(Duration::from_millis(10));
-    tick_interval.set_missed_tick_behavior(MissedTickBehavior::Skip);
-    let shutdown = Arc::new(AtomicBool::new(false));
-    signal_hook::flag::register(signal_hook::consts::SIGINT, Arc::clone(&shutdown))
-        .expect("Register hook");
 
-    loop {
-        if shutdown.load(Ordering::Relaxed) {
-            drop(scale);
-            break;
-        }
-        let weight: f64;
-        (scale, weight) = tokio::task::spawn_blocking(move || Scale::live_weigh(scale).unwrap())
+    pub fn update_coefficients(&mut self, coefficients: [f64; 4]) {
+        self.sender
+            .send(ScaleMessage::UpdateCoefficients(coefficients))
+            .unwrap()
+    }
+
+    pub async fn get_weight(&self) -> f64 {
+        let (resp_tx, resp_rx) = channel();
+        let msg = ScaleMessage::GetWeight { reply: resp_tx };
+        self.sender.send(msg).unwrap();
+        tokio::task::spawn_blocking(move || resp_rx.recv().unwrap())
             .await
-            .unwrap();
-
-        match receiver.try_recv() {
-            Ok(cmd) => {
-                // info!("Read weight: {weight}");
-                cmd.0.send(weight).unwrap()
-            }
-            Err(TryRecvError::Disconnected) => {
-                info!("All senders dropped, Disconnecting");
-                break;
-            }
-            Err(_) => {}
-        }
-        tick_interval.tick().await;
+            .unwrap()
     }
-    Ok(())
+
+    pub async fn get_median_weight(&self, sample_rate: f64, time: Duration) -> f64 {
+        let (resp_tx, resp_rx) = channel();
+        let msg = ScaleMessage::GetMedianWeight {
+            sample_rate,
+            time,
+            reply: resp_tx,
+        };
+        self.sender.send(msg).unwrap();
+        tokio::task::spawn_blocking(move || resp_rx.recv().unwrap())
+            .await
+            .unwrap()
+    }
+
+    pub async fn get_median_weights(&self, sample_rate: f64, time: Duration) -> Vec<f64> {
+        let (resp_tx, resp_rx) = channel();
+        let msg = ScaleMessage::GetMedianWeights {
+            sample_rate,
+            time,
+            reply: resp_tx,
+        };
+        self.sender.send(msg).unwrap();
+        tokio::task::spawn_blocking(move || resp_rx.recv().unwrap())
+            .await
+            .unwrap()
+    }
 }
 
-#[test]
-fn calibrate() {
-    let mut scale = Scale::new(716623);
-    scale = scale.connect().unwrap();
-    let (_scale, readings) = Scale::get_medians(scale, Duration::from_secs(1), 50.);
-    println!("Cell Medians: {:?}", readings)
-}
-
-#[test]
-fn connect_scale_cells() -> Result<(), Box<dyn Error>> {
-    let scale = Scale::new(716709);
-    Scale::connect(scale)?;
-    Ok(())
-}
-
-#[test]
-fn read_scale() -> Result<(), Box<dyn Error>> {
-    let mut scale = Scale::new(716709);
-    scale = Scale::connect(scale)?;
-    let (_scale, readings) = Scale::get_readings(scale)?;
-    println!("Scale Readings: {:?}", readings);
-    Ok(())
-}
-
-#[test]
-fn live_weigh_scale() -> Result<(), Box<dyn Error>> {
-    let mut scale = Scale::new(716709);
-    scale = Scale::connect(scale)?;
-    let (_, weight) = Scale::live_weigh(scale)?;
-    println!("Weight: {:?}", weight);
-
-    Ok(())
-}
-
-#[test]
-fn weigh_scale() -> Result<(), Box<dyn Error>> {
-    let mut scale = Scale::new(716623);
-    scale = Scale::connect(scale)?;
-    // scale = Scale::change_coefficients(scale, vec![-4926943.639406107, 2486765.6938639805, -4985950.215221712, 4799388.712869379]);
-    scale = Scale::change_coefficients(
-        scale,
-        vec![
-            4780449.913365008,
-            2596299.373482612,
-            -4975764.006916862,
-            4998589.065848139,
-        ],
-    );
-    let (_, weight) = Scale::weight_by_median(scale, Duration::from_secs(3), 50)?;
-    println!("Weight: {:?}", weight - 4268.);
-
-    Ok(())
-}
-
-#[test]
-fn test_dot() {
-    let vec1 = vec![1., 2., 3., 4.];
-    let vec2 = vec![1., 1., 1., 0.];
-    assert_eq!(dot(vec1, vec2), 6.);
-}
-
-#[test]
-fn test_median() {
-    let mut arr = vec![0., 6., 1., 3., 4.];
-    let ans = Scale::median(&mut arr);
-    assert_eq!(ans, 3.);
-}
+// #[test]
+// fn calibrate() {
+//     let mut scale = Scale::new(716623);
+//     scale.connect();
+//     let readings = scale.get_median_weights(50., Duration::from_secs(1));
+//     println!("Cell Medians: {:?}", readings)
+// }
 //
 // #[test]
-// fn calibrate_scale() -> Result<(), Box<dyn Error>> {
+// fn connect_scale_cells() -> Result<(), Box<dyn Error>> {
+//     let scale = Scale::new(716709);
+//     scale.connect();
+//     Ok(())
+// }
+//
+// #[test]
+// fn read_scale() -> Result<(), Box<dyn Error>> {
 //     let mut scale = Scale::new(716709);
-//     scale.connect()?;
-//     scale.calibrate(437.7, 1000, 100)?;
+//     scale.connect();
+//     let readings = scale.get_readings();
+//     println!("Scale Readings: {:?}", readings);
+//     Ok(())
+// }
+//
+// #[test]
+// fn live_weigh_scale() -> Result<(), Box<dyn Error>> {
+//     let mut scale = Scale::new(716709);
+//     scale.connect();
+//     let weight = scale.live_weigh();
+//     println!("Weight: {:?}", weight);
 //
 //     Ok(())
 // }
 //
 // #[test]
-// fn get_medians() -> Result<(), Box<dyn Error>> {
-//     let mut scale = Scale::new(716709);
-//     scale.connect()?;
-//     let medians = scale.get_medians(1000, 50)?;
-//     println!("Medians: {:?}", medians);
-//     Ok(())
-// }
-//
-// #[test]
-// fn diagnose_scale() -> Result<(), Box<dyn Error>> {
-//     let mut scale = Scale::new(716709);
-//     scale.connect()?;
-//     let (_times, _weights) = scale.diagnose(Duration::from_secs(5), 100)?;
+// fn weigh_scale() -> Result<(), Box<dyn Error>> {
+//     let mut scale = Scale::new(716623);
+//     scale.connect();
+//     let coefficients = [
+//         4780449.913365008,
+//         2596299.373482612,
+//         -4975764.006916862,
+//         4998589.065848139,
+//     ];
+//     scale.update_coefficients(coefficients);
+//     let weight = scale.get_median_weight(50., Duration::from_secs(3));
+//     println!("Weight: {:?}", weight - 4268.);
 //     Ok(())
 // }
