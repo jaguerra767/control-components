@@ -46,7 +46,7 @@ impl Scale {
         for lc in &mut self.cells {
             lc.connect().unwrap_or_else(|_| {
                 panic!(
-                    "Failed to connect to load cell in phidget: {}",
+                    "Failed to connect to load cell on phidget: {}",
                     self.phidget_id
                 )
             });
@@ -62,7 +62,8 @@ impl Scale {
         self.cells
             .as_slice()
             .iter()
-            .map(|cell| cell.get_reading().expect("Failed to get reading"))
+            .map(|cell| cell.get_reading().unwrap_or_else(|_|{
+                panic!("Failed to read lc on phidget id: {}", self.phidget_id)}))
             .collect()
     }
 
@@ -98,7 +99,9 @@ impl Scale {
             let current_time = Instant::now();
             if (current_time - last_cycle_time) > interval {
                 for (idx, cell) in self.cells.iter().enumerate().take(self.cells.len()) {
-                    readings[idx].push(cell.get_reading().expect("Failed to get reading"))
+                    readings[idx].push(cell.get_reading().unwrap_or_else(|_ |{panic!(
+                        "failed to read lc on phidget: {}", self.phidget_id
+                    )}))
                 }
                 for cell in 0..self.cells.len() {
                     medians[cell] = median(&mut readings[cell]);
