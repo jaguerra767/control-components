@@ -42,7 +42,7 @@ pub struct ControllerHandle {
 }
 
 impl ControllerHandle {
-    pub fn new<T>(addr: T, motors: &[MotorBuilder]) -> Self
+    pub fn new<T>(addr: T, motors: [MotorBuilder; 4]) -> Self
     where
         T: ToSocketAddrs + Send + 'static,
     {

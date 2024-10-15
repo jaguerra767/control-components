@@ -1,5 +1,5 @@
 use ethercrab::std::{ethercat_now, tx_rx_task};
-use ethercrab::{Client, ClientConfig, PduStorage, Timeouts};
+use ethercrab::{PduStorage, Timeouts, MainDevice, MainDeviceConfig};
 use log::info;
 use std::error::Error;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -74,20 +74,20 @@ async fn client(
         .try_split()
         .expect("This method can only be called once"); //.expect("Can only split once");
 
-    let client = Arc::new(Client::new(
+    let main_device = Arc::new(MainDevice::new(
         pdu_loop,
         Timeouts {
             wait_loop_delay: Duration::from_millis(2),
             mailbox_response: Duration::from_millis(1000),
             ..Default::default()
         },
-        ClientConfig::default(),
+        MainDeviceConfig::default(),
     ));
 
     info!("Starting EtherCAT master");
     tokio::spawn(tx_rx_task(interface, pdu_tx, pdu_rx).expect("spawn TX/RX task"));
 
-    let group = client
+    let group = main_device
         .init_single_group::<MAX_SLAVES, PDI_LEN>(ethercat_now)
         .await
         .expect("Init");
@@ -95,10 +95,10 @@ async fn client(
     info!("Discovered {} slaves", group.len());
     info!("Initialized EtherCAT Group");
 
-    let mut group = group.into_op(&client).await.expect("PRE-OP -> OP");
+    let mut group = group.into_op(&main_device).await.expect("PRE-OP -> OP");
     info!("PRE-OP -> OP");
 
-    for slave in group.iter(&client) {
+    for slave in group.iter(&main_device) {
         let (i, o) = slave.io_raw();
 
         info!(
@@ -122,13 +122,13 @@ async fn client(
             info!("Shutting down EK1100 client");
             break;
         }
-        group.tx_rx(&client).await.expect("Tx/Rx");
+        group.tx_rx(&main_device).await.expect("Tx/Rx");
 
         match rx.try_recv() {
             Ok(msg) => {
                 let card_id = msg.card_id;
-                let mut slave = group.slave(&client, card_id).expect("Unable to get slave");
-                let (i, o) = slave.io_raw_mut();
+                let mut sub_device = group.subdevice(&main_device, card_id).expect("Unable to get sub-device");
+                let (i, o) = sub_device.io_raw_mut();
                 match msg.cmd {
                     Command::SetState(state) => {
                         let old_state = o[0];
@@ -150,15 +150,15 @@ async fn client(
         tick_interval.tick().await;
     }
 
-    let group = group.into_safe_op(&client).await.expect("OP -> SAFE-OP");
+    let group = group.into_safe_op(&main_device).await.expect("OP -> SAFE-OP");
 
     info!("OP -> SAFE-OP");
 
-    let group = group.into_pre_op(&client).await.expect("SAFE-OP -> PRE-OP");
+    let group = group.into_pre_op(&main_device).await.expect("SAFE-OP -> PRE-OP");
 
     info!("SAFE-OP -> PRE-OP");
 
-    let _group = group.into_init(&client).await.expect("PRE-OP -> INIT");
+    let _group = group.into_init(&main_device).await.expect("PRE-OP -> INIT");
 
     info!("PRE-OP -> INIT, shutdown complete");
     Ok(())
