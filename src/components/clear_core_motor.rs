@@ -20,7 +20,7 @@ pub enum Status {
 
 #[derive(Clone)]
 pub struct ClearCoreMotor {
-    id: u8,
+    pub id: u8,
     prefix: [u8; 3],
     scale: usize,
     drive_sender: Sender<Message>,
