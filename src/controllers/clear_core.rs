@@ -1,3 +1,4 @@
+use std::error;
 use crate::components::clear_core_io::{AnalogInput, DigitalInput, DigitalOutput, HBridge};
 use crate::components::clear_core_motor::{ClearCoreMotor, Status};
 use crate::interface::tcp::client;
@@ -28,9 +29,30 @@ pub type AnalogInputs = Vec<AnalogInput>;
 pub type Outputs = Vec<DigitalOutput>;
 pub type HBridges = [HBridge; NO_HBRIDGE];
 
+const REPLY_IDX: usize = 3;
+const FAILED_REPLY: u8 = b'?';
+
 pub struct MotorBuilder {
     pub id: u8,
     pub scale: usize,
+}
+
+#[derive(Debug)]
+pub struct Error{
+    pub message: String,
+}
+
+impl<T: error::Error + Send + Sync + 'static> From<T> for Error {
+    fn from(value: T) -> Self {
+        Self{message: value.to_string()}
+    }
+}
+pub async fn check_reply(reply: &[u8]) -> Result<(), Error> {
+    if reply[REPLY_IDX] == FAILED_REPLY {
+        Err(Error{message: std::str::from_utf8(reply)?.to_string()})
+    } else {
+        Ok(())
+    }
 }
 
 pub struct ControllerHandle {
@@ -119,7 +141,7 @@ impl ControllerHandle {
     }
 }
 
-pub async fn get_all_motor_states(controller: ControllerHandle) -> Vec<Status> {
+pub async fn get_all_motor_states(controller: ControllerHandle) -> Vec<Result<Status, Error>> {
     let mut statuses = Vec::with_capacity(controller.motors.len());
     let mut set = JoinSet::new();
     let motors = controller.get_motors();

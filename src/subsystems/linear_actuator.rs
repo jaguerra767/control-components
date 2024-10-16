@@ -1,14 +1,8 @@
 use crate::components::clear_core_io::{AnalogInput, DigitalOutput, HBridge, HBridgeState};
+use crate::controllers::clear_core::Error;
 pub use crate::controllers::clear_core::Message;
 use crate::controllers::ek1100_io::IOCard;
 
-//TODO: Move this to a hatches module
-#[allow(unused)]
-const ACTUONIX_LA_MAX_STROKE: isize = 34000;
-//TODO: Move this to a hatches module
-#[allow(unused)]
-const ACTUONIX_LA_MIN_STROKE: isize = 400;
-//TODO: Move this to a hatches module
 
 pub struct SimpleLinearActuator {
     output: HBridge,
@@ -29,14 +23,14 @@ impl SimpleLinearActuator {
             feedback: Some(feedback),
         }
     }
-    pub async fn get_feedback(&self) -> Option<isize> {
+    pub async fn get_feedback(&self) -> Result<Option<isize>, Error> {
         if let Some(fb) = self.feedback.as_ref() {
-            Some(fb.get_state().await)
+            Ok(Some(fb.get_state().await?))
         } else {
-            None
+            Ok(None)
         }
     }
-    pub async fn actuate(&self, state: HBridgeState) {
+    pub async fn actuate(&self, state: HBridgeState) -> Result<(), Error> {
         self.output.set_state(state).await
     }
 }
@@ -54,13 +48,14 @@ pub enum Output {
 }
 
 impl Output {
-    pub async fn set_state(&mut self, state: bool) {
+    pub async fn set_state(&mut self, state: bool) -> Result<(), Error> {
         match self {
             Output::EtherCat(io, slot, id) => {
                 io.set_state(*slot, *id, state).await;
+                Ok(())
             }
             Output::ClearCore(out) => {
-                out.set_state(state).await;
+                out.set_state(state).await
             }
         }
     }
@@ -87,27 +82,26 @@ impl RelayHBridge {
         }
     }
 
-    pub async fn get_feedback(&self) -> isize {
-        let mut position = self.fb_pair.0.get_state().await;
+    pub async fn get_feedback(&self) -> Result<isize, Error> {
+        let mut position = self.fb_pair.0.get_state().await?;
         if let Some(fb) = &self.fb_pair.1 {
-            let pos_b = fb.get_state().await;
+            let pos_b = fb.get_state().await?;
             position = (position + pos_b) / 2
         }
-        // warn!("Output {:?} at position {:?}", self.output_pair, position);
-        position
+       Ok(position) 
     }
 
-    pub async fn actuate(&mut self, power: HBridgeState) {
+    pub async fn actuate(&mut self, power: HBridgeState) -> Result<(), Error> {
         match power {
             HBridgeState::Pos => {
-                self.output_pair.0.set_state(true).await;
+                self.output_pair.0.set_state(true).await
             }
             HBridgeState::Neg => {
-                self.output_pair.1.set_state(true).await;
+                self.output_pair.1.set_state(true).await
             }
             HBridgeState::Off => {
-                self.output_pair.0.set_state(false).await;
-                self.output_pair.1.set_state(false).await;
+                self.output_pair.0.set_state(false).await?;
+                self.output_pair.1.set_state(false).await
             }
         }
     }

@@ -1,4 +1,5 @@
 use crate::components::clear_core_io::DigitalOutput;
+use crate::controllers::clear_core::Error;
 
 #[allow(dead_code)]
 pub enum Color {
@@ -22,25 +23,25 @@ impl Led {
         }
     }
 
-    pub async fn turn_on(&self, color: Color) {
+    pub async fn turn_on(&self, color: Color) -> Result<(), Error> {
         match color {
             Color::Red => {
-                self.green_output.set_state(false).await;
-                self.red_output.set_state(true).await;
+                self.green_output.set_state(false).await?;
+                self.red_output.set_state(true).await
             }
             Color::Green => {
-                self.red_output.set_state(false).await;
+                self.red_output.set_state(false).await?;
                 self.green_output.set_state(true).await
             }
             Color::Yellow => {
-                self.green_output.set_state(true).await;
-                self.red_output.set_state(true).await;
+                self.green_output.set_state(true).await?;
+                self.red_output.set_state(true).await
             }
         }
     }
 
-    pub async fn all_off(&self) {
-        self.red_output.set_state(false).await;
-        self.green_output.set_state(false).await;
+    pub async fn all_off(&self) -> Result<(), Error> {
+        self.red_output.set_state(false).await?;
+        self.green_output.set_state(false).await
     }
 }

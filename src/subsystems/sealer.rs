@@ -4,6 +4,7 @@ use log::info;
 use std::cmp::Ordering;
 use std::time::Duration;
 use tokio::time::{Instant, MissedTickBehavior};
+use crate::controllers::clear_core::Error;
 
 pub struct Sealer {
     heater: Output,
@@ -30,33 +31,33 @@ impl Sealer {
         }
     }
 
-    pub async fn get_actuator_position(&mut self) -> isize {
+    pub async fn get_actuator_position(&mut self) -> Result<isize, Error> {
         self.actuator.get_feedback().await
     }
 
-    pub async fn absolute_move(&mut self, position: isize) {
-        let current_pos = self.get_actuator_position().await;
+    pub async fn absolute_move(&mut self, position: isize) -> Result<(), Error> {
+        let current_pos = self.get_actuator_position().await?;
         match current_pos.cmp(&position) {
             Ordering::Greater => self.retract_actuator(position).await,
             // Ordering::Greater => self.timed_retract_actuator(Duration::from_secs(3)).await,
             Ordering::Less => self.extend_actuator(position).await,
             // Ordering::Less => self.timed_extend_actuator(Duration::from_secs(3)).await,
-            Ordering::Equal => info!("Sealer already at position: {:?}", position),
+            Ordering::Equal =>Ok(())
         }
     }
 
-    pub async fn timed_extend_actuator(&mut self, time: Duration) {
-        self.actuator.actuate(HBridgeState::Pos).await;
+    pub async fn timed_extend_actuator(&mut self, time: Duration) -> Result<(), Error> {
+        self.actuator.actuate(HBridgeState::Pos).await?;
         tokio::time::sleep(time).await;
-        self.actuator.actuate(HBridgeState::Off).await;
+        self.actuator.actuate(HBridgeState::Off).await
     }
 
-    pub async fn extend_actuator(&mut self, set_point: isize) {
-        self.actuator.actuate(HBridgeState::Pos).await;
+    pub async fn extend_actuator(&mut self, set_point: isize) -> Result<(), Error> {
+        self.actuator.actuate(HBridgeState::Pos).await?;
         let star_time = Instant::now();
         let mut tick_interval = tokio::time::interval(Duration::from_millis(5));
         tick_interval.set_missed_tick_behavior(MissedTickBehavior::Skip);
-        while self.actuator.get_feedback().await <= set_point {
+        while self.actuator.get_feedback().await? <= set_point {
             let curr_time = Instant::now();
             if (curr_time - star_time) > self.timeout {
                 info!("Timed Out!");
@@ -64,21 +65,21 @@ impl Sealer {
             }
             tick_interval.tick().await;
         }
-        self.actuator.actuate(HBridgeState::Off).await;
+        self.actuator.actuate(HBridgeState::Off).await
     }
 
-    pub async fn timed_retract_actuator(&mut self, time: Duration) {
-        self.actuator.actuate(HBridgeState::Neg).await;
+    pub async fn timed_retract_actuator(&mut self, time: Duration) -> Result<(), Error> {
+        self.actuator.actuate(HBridgeState::Neg).await?;
         tokio::time::sleep(time).await;
-        self.actuator.actuate(HBridgeState::Off).await;
+        self.actuator.actuate(HBridgeState::Off).await
     }
 
-    pub async fn retract_actuator(&mut self, set_point: isize) {
-        self.actuator.actuate(HBridgeState::Neg).await;
+    pub async fn retract_actuator(&mut self, set_point: isize) -> Result<(), Error> {
+        self.actuator.actuate(HBridgeState::Neg).await?;
         let mut tick_interval = tokio::time::interval(Duration::from_millis(5));
         tick_interval.set_missed_tick_behavior(MissedTickBehavior::Skip);
         let star_time = Instant::now();
-        while self.actuator.get_feedback().await >= set_point {
+        while self.actuator.get_feedback().await? >= set_point {
             let curr_time = Instant::now();
             if (curr_time - star_time) > self.timeout {
                 info!("Timed Out!");
@@ -86,25 +87,25 @@ impl Sealer {
             }
             tick_interval.tick().await;
         }
-        self.actuator.actuate(HBridgeState::Off).await;
+        self.actuator.actuate(HBridgeState::Off).await
     }
 
-    async fn heat(&mut self, dwell_time: Duration) {
-        self.heater.set_state(true).await;
+    async fn heat(&mut self, dwell_time: Duration) -> Result<(), Error> {
+        self.heater.set_state(true).await?;
         tokio::time::sleep(dwell_time).await;
-        self.heater.set_state(false).await;
+        self.heater.set_state(false).await
     }
 
-    pub async fn seal(&mut self) {
-        self.absolute_move(self.extend_setpoint).await;
-        self.heat(Duration::from_secs_f64(3.0)).await;
-        self.absolute_move(self.retract_setpoint).await;
+    pub async fn seal(&mut self) -> Result<(), Error> {
+        self.absolute_move(self.extend_setpoint).await?;
+        self.heat(Duration::from_secs_f64(3.0)).await?;
+        self.absolute_move(self.retract_setpoint).await
     }
 
-    pub async fn timed_move_seal(&mut self, time: Duration) {
-        self.timed_extend_actuator(time).await;
-        self.heat(Duration::from_secs_f64(3.)).await;
-        self.timed_retract_actuator(time).await;
+    pub async fn timed_move_seal(&mut self, time: Duration) -> Result<(), Error> {
+        self.timed_extend_actuator(time).await?;
+        self.heat(Duration::from_secs_f64(3.)).await?;
+        self.timed_retract_actuator(time).await
     }
 }
 

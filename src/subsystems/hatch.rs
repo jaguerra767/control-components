@@ -3,6 +3,7 @@ use crate::subsystems::linear_actuator::{Output, RelayHBridge};
 use log::info;
 use std::time::Duration;
 use tokio::time::{Instant, MissedTickBehavior};
+use crate::controllers::clear_core::Error;
 
 pub struct Hatch {
     actuator: RelayHBridge,
@@ -18,22 +19,22 @@ impl Hatch {
         Self::new(RelayHBridge::new((ch_a, ch_b), fb), timeout)
     }
 
-    pub async fn get_position(&self) -> isize {
+    pub async fn get_position(&self) -> Result<isize, Error> {
         self.actuator.get_feedback().await
     }
 
-    pub async fn timed_open(&mut self, time: Duration) {
-        self.actuator.actuate(HBridgeState::Pos).await;
+    pub async fn timed_open(&mut self, time: Duration) -> Result<(), Error> {
+        self.actuator.actuate(HBridgeState::Pos).await?;
         tokio::time::sleep(time).await;
-        self.actuator.actuate(HBridgeState::Off).await;
+        self.actuator.actuate(HBridgeState::Off).await
     }
 
-    pub async fn open(&mut self, set_point: isize) {
+    pub async fn open(&mut self, set_point: isize) -> Result<(), Error> {
         let star_time = Instant::now();
         let mut tick_interval = tokio::time::interval(Duration::from_millis(5));
         tick_interval.set_missed_tick_behavior(MissedTickBehavior::Skip);
-        self.actuator.actuate(HBridgeState::Pos).await;
-        while self.actuator.get_feedback().await >= set_point {
+        self.actuator.actuate(HBridgeState::Pos).await?;
+        while self.actuator.get_feedback().await? >= set_point {
             let curr_time = Instant::now();
             if (curr_time - star_time) > self.timeout {
                 info!("Timed Out!");
@@ -41,21 +42,21 @@ impl Hatch {
             }
             tick_interval.tick().await;
         }
-        self.actuator.actuate(HBridgeState::Off).await;
+        self.actuator.actuate(HBridgeState::Off).await
     }
 
-    pub async fn timed_close(&mut self, time: Duration) {
-        self.actuator.actuate(HBridgeState::Neg).await;
+    pub async fn timed_close(&mut self, time: Duration) -> Result<(), Error> {
+        self.actuator.actuate(HBridgeState::Neg).await?;
         tokio::time::sleep(time).await;
-        self.actuator.actuate(HBridgeState::Off).await;
+        self.actuator.actuate(HBridgeState::Off).await
     }
 
-    pub async fn close(&mut self, set_point: isize) {
+    pub async fn close(&mut self, set_point: isize) -> Result<(), Error> {
         let star_time = Instant::now();
-        self.actuator.actuate(HBridgeState::Neg).await;
+        self.actuator.actuate(HBridgeState::Neg).await?;
         let mut tick_interval = tokio::time::interval(Duration::from_millis(5));
         tick_interval.set_missed_tick_behavior(MissedTickBehavior::Skip);
-        while self.actuator.get_feedback().await <= set_point {
+        while self.actuator.get_feedback().await? <= set_point {
             let curr_time = Instant::now();
             if (curr_time - star_time) > self.timeout {
                 info!("Timed Out!");
@@ -63,7 +64,7 @@ impl Hatch {
             }
             tick_interval.tick().await;
         }
-        self.actuator.actuate(HBridgeState::Off).await;
+        self.actuator.actuate(HBridgeState::Off).await
     }
 }
 

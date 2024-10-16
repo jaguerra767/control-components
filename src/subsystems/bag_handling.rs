@@ -1,8 +1,8 @@
 use crate::components::clear_core_io::{DigitalInput, HBridgeState};
 use crate::components::clear_core_motor::{ClearCoreMotor, Status};
 use crate::subsystems::linear_actuator::SimpleLinearActuator;
+use crate::controllers::clear_core::Error;
 use log::error;
-use std::error::Error;
 use std::time::Duration;
 use tokio::sync::mpsc::Receiver;
 use tokio::sync::mpsc::Sender;
@@ -23,33 +23,36 @@ impl BagGripper {
         }
     }
 
-    pub async fn open(&mut self) {
-        self.actuator.actuate(HBridgeState::Pos).await;
+    pub async fn open(&mut self) -> Result<(), Error> {
+        self.actuator.actuate(HBridgeState::Pos).await?;
         sleep(Duration::from_secs_f64(4.0)).await;
+        Ok(())
     }
 
-    pub async fn close(&mut self) {
-        self.actuator.actuate(HBridgeState::Neg).await;
+    pub async fn close(&mut self) -> Result<(), Error> {
+        self.actuator.actuate(HBridgeState::Neg).await?;
         sleep(Duration::from_secs_f64(4.0)).await;
+        Ok(())
     }
 
-    pub async fn timed_open(&mut self, time: Duration) {
-        self.actuator.actuate(HBridgeState::Pos).await;
+    pub async fn timed_open(&mut self, time: Duration) -> Result<(), Error> {
+        self.actuator.actuate(HBridgeState::Pos).await?;
         sleep(time).await;
+        Ok(())
     }
 
-    pub async fn timed_close(&mut self, time: Duration) {
-        self.actuator.actuate(HBridgeState::Neg).await;
+    pub async fn timed_close(&mut self, time: Duration) -> Result<(), Error> {
+        self.actuator.actuate(HBridgeState::Neg).await?;
         sleep(time).await;
+        Ok(())
     }
 
-    pub async fn rip_bag(&self) -> Result<(), Box<dyn Error>> {
+    pub async fn rip_bag(&self) -> Result<(), Error> {
         for pos in self.positions.as_slice() {
-            self.motor.absolute_move(*pos).await.unwrap();
+            self.motor.absolute_move(*pos).await?;
             self.motor
                 .wait_for_move(Duration::from_millis(150))
-                .await
-                .unwrap()
+                .await?
         }
         Ok(())
     }
@@ -67,28 +70,27 @@ impl BagDispenser {
             photo_eye: BagSensor::new(photo_eye_digital_input),
         }
     }
-    pub async fn dispense(&self) -> Result<(), Box<dyn Error>> {
+    pub async fn dispense(&self) -> Result<(), Error> {
         let mut interval = interval(Duration::from_millis(100));
-        self.motor.set_velocity(3.0).await;
-        let _ = self.motor.relative_move(100.0).await;
-        while !self.photo_eye.photo_eye.get_state().await {
+        self.motor.set_velocity(3.0).await?;
+        self.motor.relative_move(100.0).await?;
+        while !self.photo_eye.photo_eye.get_state().await? {
             interval.tick().await;
         }
-        self.motor.abrupt_stop().await;
+        self.motor.abrupt_stop().await?;
         Ok(())
     }
-    pub async fn pull_back(&self) -> Result<(), Box<dyn Error>> {
+    pub async fn pull_back(&self) -> Result<(), Error> {
         let mut interval = interval(Duration::from_millis(100));
-        self.motor.set_velocity(1.5).await;
-        self.motor.relative_move(-4.6).await.unwrap();
-        while self.motor.get_status().await == Status::Moving {
+        self.motor.set_velocity(1.5).await?;
+        self.motor.relative_move(-4.6).await?;
+        while self.motor.get_status().await? == Status::Moving {
             interval.tick().await;
         }
         Ok(())
     }
 
-    pub async fn check_photo_eye(&self) -> BagSensorState {
-        // TODO: i think this may be inverted?
+    pub async fn check_photo_eye(&self) -> Result<BagSensorState, Error> {
         self.photo_eye.check().await
     }
 }
@@ -105,17 +107,18 @@ impl BagSensor {
         Self { photo_eye }
     }
 
-    pub async fn check(&self) -> BagSensorState {
-        match self.photo_eye.get_state().await {
-            true => BagSensorState::Bagless,
-            false => BagSensorState::Bagful,
+    pub async fn check(&self) -> Result<BagSensorState, Error> {
+        if self.photo_eye.get_state().await? {
+            Ok(BagSensorState::Bagless)
+        } else {
+            Ok(BagSensorState::Bagful)
         }
     }
 
-    pub async fn watcher(photo_eye: DigitalInput, tx: Sender<BagSensorState>) {
+    pub async fn watcher(photo_eye: DigitalInput, tx: Sender<BagSensorState>) -> Result<(), Error> {
         let sensor = Self::new(photo_eye);
         loop {
-            tx.clone().send(sensor.check().await).await.unwrap();
+            tx.clone().send(sensor.check().await?).await?;
             sleep(Duration::from_millis(50)).await;
         }
     }

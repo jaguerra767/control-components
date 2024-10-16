@@ -63,6 +63,7 @@ fn test_make_prefix() {
     assert_eq!(prefix, [2, 77, 50]);
 }
 
+
 #[test]
 fn test_int_to_bytes() {
     let bytes = num_to_bytes(2300);

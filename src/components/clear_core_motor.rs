@@ -1,16 +1,13 @@
 use crate::components::send_recv::SendRecv;
-use crate::subsystems::linear_actuator::Message;
 use crate::util::utils::{ascii_to_int, make_prefix, num_to_bytes};
-use log::error;
 use serde::Serialize;
 use std::result::Result;
 pub use std::time::Duration;
 use tokio::sync::mpsc::Sender;
 use tokio::time::MissedTickBehavior;
+use crate::controllers::clear_core::{Message, Error, check_reply};
 
-const REPLY_IDX: usize = 3;
-const _SUCCESSFUL_REPLY: u8 = b'_';
-const FAILED_REPLY: u8 = b'?';
+
 
 #[derive(Debug, PartialOrd, PartialEq, Serialize)]
 pub enum Status {
@@ -19,7 +16,6 @@ pub enum Status {
     Faulted,
     Ready,
     Moving,
-    Unknown,
 }
 
 #[derive(Clone)]
@@ -41,34 +37,32 @@ impl ClearCoreMotor {
         }
     }
 
-    async fn check_reply(&self, reply: &[u8]) -> Result<(), Status> {
-        if reply[REPLY_IDX] == FAILED_REPLY {
-            error!(
-                "Response from motor controller: {:?}",
-                reply.to_ascii_lowercase()
-            );
-            Err(self.get_status().await)
-        } else {
-            Ok(())
-        }
-    }
+    
 
-    pub async fn enable(&self) -> Result<&Self, Status> {
+    pub async fn enable(&self) -> Result<(), Error> {
         let enable_cmd = [2, b'M', self.id + 48, b'E', b'N', 13];
         let resp = self.write(enable_cmd.as_ref()).await;
-        if let Err(err) = self.check_reply(resp.as_slice()).await {
-            Err(err)
+        check_reply(&resp).await?;
+        let mut tick_interval = tokio::time::interval(Duration::from_millis(250));
+        tick_interval.set_missed_tick_behavior(MissedTickBehavior::Skip);
+        while self.get_status().await? == Status::Enabling {
+            tick_interval.tick().await;
+        }
+        if self.get_status().await? == Status::Faulted {
+            Err(Error{message: "motor faulted".to_string()})
         } else {
-            Ok(self)
+            Ok(()) 
         }
     }
 
-    pub async fn disable(&self) {
+    pub async fn disable(&self) -> Result<(), Error> {
         let enable_cmd = [2, b'M', self.id + 48, b'D', b'E', 13];
-        self.write(enable_cmd.as_ref()).await;
+        let resp = self.write(enable_cmd.as_ref()).await;
+        check_reply(resp.as_ref()).await?;
+        Ok(())
     }
 
-    pub async fn absolute_move(&self, position: f64) -> Result<(), Status> {
+    pub async fn absolute_move(&self, position: f64) -> Result<(), Error> {
         let position = num_to_bytes((position * (self.scale as f64)).trunc() as isize);
         let mut msg: Vec<u8> = Vec::with_capacity(position.len() + self.prefix.len() + 1);
         msg.extend_from_slice(self.prefix.as_slice());
@@ -76,10 +70,11 @@ impl ClearCoreMotor {
         msg.extend_from_slice(position.as_slice());
         msg.push(13);
         let resp = self.write(msg.as_slice()).await;
-        self.check_reply(&resp).await
+        check_reply(&resp).await?;
+        Ok(())
     }
 
-    pub async fn relative_move(&self, position: f64) -> Result<(), Status> {
+    pub async fn relative_move(&self, position: f64) -> Result<(), Error> {
         let position = num_to_bytes((position * (self.scale as f64)).trunc() as isize);
         let mut msg: Vec<u8> = Vec::with_capacity(position.len() + self.prefix.len() + 1);
         msg.extend_from_slice(self.prefix.as_slice());
@@ -87,10 +82,11 @@ impl ClearCoreMotor {
         msg.extend_from_slice(position.as_slice());
         msg.push(13);
         let resp = self.write(msg.as_slice()).await;
-        self.check_reply(&resp).await
+        check_reply(&resp).await?;
+        Ok(())
     }
 
-    pub async fn jog(&self, speed: f64) -> Result<(), Status> {
+    pub async fn jog(&self, speed: f64) -> Result<(), Error> {
         let speed = num_to_bytes((speed * (self.scale as f64)).trunc() as isize);
         let mut msg: Vec<u8> = Vec::with_capacity(speed.len() + self.prefix.len() + 1);
         msg.extend_from_slice(self.prefix.as_slice());
@@ -98,30 +94,37 @@ impl ClearCoreMotor {
         msg.extend_from_slice(speed.as_slice());
         msg.push(13);
         let resp = self.write(msg.as_slice()).await;
-        self.check_reply(&resp).await
+        check_reply(&resp).await?;
+        Ok(())
     }
 
-    pub async fn abrupt_stop(&self) {
+    pub async fn abrupt_stop(&self) -> Result<(), Error> {
         let stop_cmd = [2, b'M', self.id + 48, b'A', b'S', 13];
-        self.write(stop_cmd.as_ref()).await;
+        let resp = self.write(stop_cmd.as_ref()).await;
+        check_reply(&resp).await?;
+        Ok(())
     }
 
-    pub async fn stop(&self) {
+    pub async fn stop(&self) -> Result<(), Error> {
         let stop_cmd = [2, b'M', self.id + 48, b'S', b'T', 13];
-        self.write(stop_cmd.as_ref()).await;
+        let resp = self.write(stop_cmd.as_ref()).await;
+        check_reply(&resp).await?;
+        Ok(())
     }
 
-    pub async fn set_position(&self, position: isize) {
+    pub async fn set_position(&self, position: isize) -> Result<(), Error> {
         let pos = num_to_bytes(position * self.scale as isize);
         let mut msg: Vec<u8> = Vec::with_capacity(pos.len() + self.prefix.len() + 1);
         msg.extend_from_slice(self.prefix.as_slice());
         msg.extend_from_slice(b"SP");
         msg.extend_from_slice(pos.as_slice());
         msg.push(13);
-        self.write(msg.as_slice()).await;
+        let resp = self.write(msg.as_slice()).await;
+        check_reply(&resp).await?;
+        Ok(())
     }
 
-    pub async fn set_velocity(&self, mut velocity: f64) {
+    pub async fn set_velocity(&self, mut velocity: f64) -> Result<(), Error> {
         if velocity < 0. {
             velocity = 0.;
         }
@@ -131,70 +134,67 @@ impl ClearCoreMotor {
         msg.extend_from_slice(b"SV");
         msg.extend_from_slice(vel.as_slice());
         msg.push(13);
-        self.write(msg.as_slice()).await;
+        let resp = self.write(msg.as_slice()).await;
+        check_reply(&resp).await?;
+        Ok(())
     }
 
-    pub async fn set_acceleration(&self, acceleration: f64) {
+    pub async fn set_acceleration(&self, acceleration: f64) -> Result<(), Error> {
         let accel = num_to_bytes((acceleration * (self.scale as f64)).trunc() as isize);
         let mut msg: Vec<u8> = Vec::with_capacity(accel.len() + self.prefix.len() + 1);
         msg.extend_from_slice(self.prefix.as_slice());
         msg.extend_from_slice(b"SA");
         msg.extend_from_slice(accel.as_slice());
         msg.push(13);
-        self.write(msg.as_slice()).await;
+        let resp = self.write(msg.as_slice()).await;
+        check_reply(&resp).await?;
+        Ok(())
     }
 
-    pub async fn set_deceleration(&self, deceleration: f64) {
+    pub async fn set_deceleration(&self, deceleration: f64) -> Result<(), Error> {
         let accel = num_to_bytes((deceleration * (self.scale as f64)).trunc() as isize);
         let mut msg: Vec<u8> = Vec::with_capacity(accel.len() + self.prefix.len() + 1);
         msg.extend_from_slice(self.prefix.as_slice());
         msg.extend_from_slice(b"SD");
         msg.extend_from_slice(accel.as_slice());
         msg.push(13);
-        self.write(msg.as_slice()).await;
+        let resp = self.write(msg.as_slice()).await;
+        check_reply(&resp).await?;
+        Ok(())
     }
 
-    pub async fn get_status(&self) -> Status {
+    pub async fn get_status(&self) -> Result<Status, Error> {
         let status_cmd = [2, b'M', self.id + 48, b'G', b'S', 13];
         let res = self.write(status_cmd.as_slice()).await;
         match res[3] {
-            48 => Status::Disabled,
-            49 => Status::Enabling,
-            50 => Status::Faulted,
-            51 => Status::Ready,
-            52 => Status::Moving,
-            _ => Status::Unknown,
+            48 => Ok(Status::Disabled),
+            49 => Ok(Status::Enabling),
+            50 => Ok(Status::Faulted),
+            51 => Ok(Status::Ready),
+            52 => Ok(Status::Moving),
+            _ => Err(Error{message: "unknown status".to_string()}),
         }
     }
 
-    pub async fn get_position(&self) -> f64 {
+    pub async fn get_position(&self) -> Result<f64, Error> {
         let get_pos_cmd = [2, b'M', self.id + 48, b'G', b'P', 13];
         let res = self.write(get_pos_cmd.as_slice()).await;
-        (ascii_to_int(res.as_slice()) as f64) / (self.scale as f64)
+        check_reply(&res).await?;
+        Ok((ascii_to_int(res.as_slice()) as f64) / (self.scale as f64))
     }
 
-    pub async fn clear_alerts(&self) {
+    pub async fn clear_alerts(&self) -> Result<(), Error> {
         let clear_cmd = [2, b'M', self.id + 48, b'C', b'A', 13];
-        self.write(clear_cmd.as_slice()).await;
+        let resp = self.write(clear_cmd.as_slice()).await;
+        check_reply(&resp).await?;
+        Ok(())
     }
 
-    pub async fn wait_for_move(&self, interval: Duration) -> Result<(), Status> {
+    pub async fn wait_for_move(&self, interval: Duration) -> Result<(), Error> {
         let mut tick_interval = tokio::time::interval(interval);
         tick_interval.set_missed_tick_behavior(MissedTickBehavior::Skip);
-        loop {
-            let status = self.get_status().await;
-            match status {
-                Status::Moving => {
-                    tick_interval.tick().await;
-                    continue;
-                }
-                Status::Disabled | Status::Faulted | Status::Unknown => return Err(status),
-                Status::Ready => break,
-                Status::Enabling => {
-                    tick_interval.tick().await;
-                    continue;
-                }
-            }
+        while self.get_status().await? == Status::Moving {
+            tick_interval.tick().await;
         }
         Ok(())
     }

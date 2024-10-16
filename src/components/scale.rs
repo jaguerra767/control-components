@@ -3,6 +3,7 @@ use crate::util::utils::{dot_product, median};
 use std::sync::mpsc::{channel, Receiver, Sender};
 use std::time::{Duration, Instant};
 use std::{array, thread};
+use std::error::Error;
 
 struct Scale {
     phidget_id: i32,
@@ -42,15 +43,11 @@ impl Scale {
         }
     }
 
-    fn connect(&mut self) {
+    fn connect(&mut self) -> Result<(), Box<dyn Error>> {
         for lc in &mut self.cells {
-            lc.connect().unwrap_or_else(|_| {
-                panic!(
-                    "Failed to connect to load cell on phidget: {}",
-                    self.phidget_id
-                )
-            });
+            lc.connect()?;
         }
+        Ok(())
     }
 
     fn update_coefficients(&mut self, coefficients: [f64; 4]) {
@@ -143,7 +140,7 @@ impl Scale {
 }
 
 fn run_scale(mut scale: Scale) {
-    scale.connect();
+    _ = scale.connect();
     while let Ok(message) = scale.receiver.recv() {
         scale.handle_message(message);
     }
