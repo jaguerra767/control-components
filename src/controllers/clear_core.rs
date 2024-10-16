@@ -1,4 +1,6 @@
 use std::error;
+use std::fmt;
+use std::fmt::Formatter;
 use crate::components::clear_core_io::{AnalogInput, DigitalInput, DigitalOutput, HBridge};
 use crate::components::clear_core_motor::{ClearCoreMotor, Status};
 use crate::interface::tcp::client;
@@ -42,6 +44,11 @@ pub struct Error{
     pub message: String,
 }
 
+impl fmt::Display for Error {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.message)
+    }
+}
 impl<T: error::Error + Send + Sync + 'static> From<T> for Error {
     fn from(value: T) -> Self {
         Self{message: value.to_string()}
