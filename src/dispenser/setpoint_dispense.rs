@@ -23,7 +23,11 @@ impl From<clear_core::Error> for Error {
     }
 }
 
-
+pub struct DispenseComplete{
+    pub node_id: char,
+    pub dispensed_weight: f64,
+    
+}
 
 pub struct SetpointDispenser {
     pub node_id: char,
@@ -73,7 +77,7 @@ impl SetpointDispenser {
     }
 
 
-    pub async fn dispense(&mut self, setpoint: f64, timeout: Duration) -> Result<f64, Error> {
+    pub async fn dispense(&mut self, setpoint: f64, timeout: Duration) -> Result<DispenseComplete, Error> {
         let target_weight = self.starting_weight - setpoint;
         let start_time = Instant::now();
         let mut filter = LowPassFilter::new(
@@ -111,7 +115,7 @@ impl SetpointDispenser {
         }
         self.motor.abrupt_stop().await?;
         dispense_complete.store(true, Ordering::Relaxed);
-        Ok(current_weight)
+        Ok(DispenseComplete{node_id: self.node_id, dispensed_weight: current_weight})
     }
 }
 
