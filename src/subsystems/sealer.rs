@@ -1,10 +1,10 @@
 use crate::components::clear_core_io::HBridgeState;
+use crate::controllers::clear_core::Error;
 use crate::subsystems::linear_actuator::{Output, RelayHBridge};
 use log::info;
 use std::cmp::Ordering;
 use std::time::Duration;
 use tokio::time::{Instant, MissedTickBehavior};
-use crate::controllers::clear_core::Error;
 
 pub struct Sealer {
     heater: Output,
@@ -42,7 +42,7 @@ impl Sealer {
             // Ordering::Greater => self.timed_retract_actuator(Duration::from_secs(3)).await,
             Ordering::Less => self.extend_actuator(position).await,
             // Ordering::Less => self.timed_extend_actuator(Duration::from_secs(3)).await,
-            Ordering::Equal =>Ok(())
+            Ordering::Equal => Ok(()),
         }
     }
 

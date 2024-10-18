@@ -1,32 +1,30 @@
 use crate::components::clear_core_motor::ClearCoreMotor;
-use crate::controllers::clear_core;
 use crate::components::scale::ScaleHandle;
-use crate::util::utils::LowPassFilter;
+use crate::controllers::clear_core;
 use crate::dispenser::Parameters;
+use crate::util::utils::LowPassFilter;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::Mutex;
 use tokio::time::{interval, Instant, MissedTickBehavior};
 
-
 pub struct DispenseTimeout;
 #[derive(Debug)]
 pub enum Error {
     Motor(clear_core::Error),
-    Timeout
+    Timeout,
 }
 
 impl From<clear_core::Error> for Error {
     fn from(value: clear_core::Error) -> Self {
-       Error::Motor(value)
+        Error::Motor(value)
     }
 }
 
-pub struct DispenseComplete{
+pub struct DispenseComplete {
     pub node_id: char,
     pub dispensed_weight: f64,
-    
 }
 
 pub struct SetpointDispenser {
@@ -60,14 +58,18 @@ impl SetpointDispenser {
         })
     }
 
-    async fn dispense_complete(&mut self, current_weight:f64, target_weight:f64) -> Result<bool, Error> {
+    async fn dispense_complete(
+        &mut self,
+        current_weight: f64,
+        target_weight: f64,
+    ) -> Result<bool, Error> {
         if current_weight > target_weight + self.parameters.check_offset {
             self.motor.abrupt_stop().await?;
-            let current_weight = self.scale.get_median_weight(
-                self.parameters.sample_rate, 
-                Duration::from_secs_f64(1.0)
-            ).await;
-            
+            let current_weight = self
+                .scale
+                .get_median_weight(self.parameters.sample_rate, Duration::from_secs_f64(1.0))
+                .await;
+
             if current_weight > target_weight + self.parameters.check_offset {
                 return Ok(true);
             }
@@ -76,8 +78,11 @@ impl SetpointDispenser {
         Ok(false)
     }
 
-
-    pub async fn dispense(&mut self, setpoint: f64, timeout: Duration) -> Result<DispenseComplete, Error> {
+    pub async fn dispense(
+        &mut self,
+        setpoint: f64,
+        timeout: Duration,
+    ) -> Result<DispenseComplete, Error> {
         let target_weight = self.starting_weight - setpoint;
         let start_time = Instant::now();
         let mut filter = LowPassFilter::new(
@@ -85,12 +90,12 @@ impl SetpointDispenser {
             self.parameters.cutoff_frequency,
             self.starting_weight,
         );
-        let mut interval = interval(Duration::from_secs_f64(1./self.parameters.sample_rate));
+        let mut interval = interval(Duration::from_secs_f64(1. / self.parameters.sample_rate));
         interval.set_missed_tick_behavior(MissedTickBehavior::Skip);
         let mut current_weight = self.scale.get_weight().await;
         let error = Arc::new(Mutex::new((current_weight - target_weight) / setpoint));
         let dispense_complete = Arc::new(AtomicBool::new(false));
-        
+
         //Update motor speed wrt to the error aka P controller
         tokio::spawn({
             let motor = self.motor.clone();
@@ -101,9 +106,12 @@ impl SetpointDispenser {
                 _ = update_motor_speed(error.clone(), dispense_complete, motor, speed).await;
             }
         });
-        
+
         //Actual dispense code
-        while !self.dispense_complete(current_weight, target_weight).await? {
+        while !self
+            .dispense_complete(current_weight, target_weight)
+            .await?
+        {
             current_weight = filter.apply(self.scale.get_weight().await);
             if Instant::now() - start_time > timeout {
                 return Err(Error::Timeout);
@@ -115,7 +123,10 @@ impl SetpointDispenser {
         }
         self.motor.abrupt_stop().await?;
         dispense_complete.store(true, Ordering::Relaxed);
-        Ok(DispenseComplete{node_id: self.node_id, dispensed_weight: current_weight})
+        Ok(DispenseComplete {
+            node_id: self.node_id,
+            dispensed_weight: current_weight,
+        })
     }
 }
 
@@ -124,7 +135,7 @@ async fn update_motor_speed(
     dispense_complete: Arc<AtomicBool>,
     motor: ClearCoreMotor,
     base_speed: f64,
-) -> Result<(), Error>{
+) -> Result<(), Error> {
     let mut interval = interval(Duration::from_millis(200));
     interval.set_missed_tick_behavior(MissedTickBehavior::Skip);
     loop {

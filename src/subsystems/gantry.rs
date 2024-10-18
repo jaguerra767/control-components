@@ -1,9 +1,9 @@
 use crate::components::clear_core_motor::{ClearCoreMotor, Status};
+use crate::controllers::clear_core::Error;
 use log::info;
 use std::time::Duration;
 use tokio::sync::mpsc::Receiver;
 use tokio::sync::oneshot;
-use crate::controllers::clear_core::Error;
 
 pub struct GoToCmd {
     pos: f64,
@@ -14,7 +14,7 @@ pub enum GantryCommand {
     GoTo(GoToCmd),
 }
 
-pub async fn gantry(motor: ClearCoreMotor, mut rx: Receiver<GantryCommand>) -> Result<(), Error>{
+pub async fn gantry(motor: ClearCoreMotor, mut rx: Receiver<GantryCommand>) -> Result<(), Error> {
     // motor.set_acceleration(40.).await;
     // motor.set_velocity(300.).await;
     motor.enable().await?;

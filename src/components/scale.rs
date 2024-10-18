@@ -1,9 +1,9 @@
 use crate::components::load_cell::LoadCell;
 use crate::util::utils::{dot_product, median};
+use std::error::Error;
 use std::sync::mpsc::{channel, Receiver, Sender};
 use std::time::{Duration, Instant};
 use std::{array, thread};
-use std::error::Error;
 
 struct Scale {
     phidget_id: i32,
@@ -59,8 +59,11 @@ impl Scale {
         self.cells
             .as_slice()
             .iter()
-            .map(|cell| cell.get_reading().unwrap_or_else(|_|{
-                panic!("Failed to read lc on phidget id: {}", self.phidget_id)}))
+            .map(|cell| {
+                cell.get_reading().unwrap_or_else(|_| {
+                    panic!("Failed to read lc on phidget id: {}", self.phidget_id)
+                })
+            })
             .collect()
     }
 
@@ -96,9 +99,9 @@ impl Scale {
             let current_time = Instant::now();
             if (current_time - last_cycle_time) > interval {
                 for (idx, cell) in self.cells.iter().enumerate().take(self.cells.len()) {
-                    readings[idx].push(cell.get_reading().unwrap_or_else(|_ |{panic!(
-                        "failed to read lc on phidget: {}", self.phidget_id
-                    )}))
+                    readings[idx].push(cell.get_reading().unwrap_or_else(|_| {
+                        panic!("failed to read lc on phidget: {}", self.phidget_id)
+                    }))
                 }
                 for cell in 0..self.cells.len() {
                     medians[cell] = median(&mut readings[cell]);

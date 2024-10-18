@@ -3,7 +3,6 @@ use crate::controllers::clear_core::Error;
 pub use crate::controllers::clear_core::Message;
 use crate::controllers::ek1100_io::IOCard;
 
-
 pub struct SimpleLinearActuator {
     output: HBridge,
     feedback: Option<AnalogInput>,
@@ -54,9 +53,7 @@ impl Output {
                 io.set_state(*slot, *id, state).await;
                 Ok(())
             }
-            Output::ClearCore(out) => {
-                out.set_state(state).await
-            }
+            Output::ClearCore(out) => out.set_state(state).await,
         }
     }
 }
@@ -88,17 +85,13 @@ impl RelayHBridge {
             let pos_b = fb.get_state().await?;
             position = (position + pos_b) / 2
         }
-       Ok(position) 
+        Ok(position)
     }
 
     pub async fn actuate(&mut self, power: HBridgeState) -> Result<(), Error> {
         match power {
-            HBridgeState::Pos => {
-                self.output_pair.0.set_state(true).await
-            }
-            HBridgeState::Neg => {
-                self.output_pair.1.set_state(true).await
-            }
+            HBridgeState::Pos => self.output_pair.0.set_state(true).await,
+            HBridgeState::Neg => self.output_pair.1.set_state(true).await,
             HBridgeState::Off => {
                 self.output_pair.0.set_state(false).await?;
                 self.output_pair.1.set_state(false).await

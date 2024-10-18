@@ -1,9 +1,9 @@
-use std::error;
-use std::fmt;
-use std::fmt::Formatter;
 use crate::components::clear_core_io::{AnalogInput, DigitalInput, DigitalOutput, HBridge};
 use crate::components::clear_core_motor::{ClearCoreMotor, Status};
 use crate::interface::tcp::client;
+use std::error;
+use std::fmt;
+use std::fmt::Formatter;
 use tokio::net::ToSocketAddrs;
 use tokio::sync::mpsc::channel;
 use tokio::sync::oneshot;
@@ -40,7 +40,7 @@ pub struct MotorBuilder {
 }
 
 #[derive(Debug)]
-pub struct Error{
+pub struct Error {
     pub message: String,
 }
 
@@ -51,12 +51,16 @@ impl fmt::Display for Error {
 }
 impl<T: error::Error + Send + Sync + 'static> From<T> for Error {
     fn from(value: T) -> Self {
-        Self{message: value.to_string()}
+        Self {
+            message: value.to_string(),
+        }
     }
 }
 pub async fn check_reply(reply: &[u8]) -> Result<(), Error> {
     if reply[REPLY_IDX] == FAILED_REPLY {
-        Err(Error{message: std::str::from_utf8(reply)?.to_string()})
+        Err(Error {
+            message: std::str::from_utf8(reply)?.to_string(),
+        })
     } else {
         Ok(())
     }

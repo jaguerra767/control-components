@@ -1,7 +1,7 @@
 use crate::components::clear_core_io::{DigitalInput, HBridgeState};
 use crate::components::clear_core_motor::{ClearCoreMotor, Status};
-use crate::subsystems::linear_actuator::SimpleLinearActuator;
 use crate::controllers::clear_core::Error;
+use crate::subsystems::linear_actuator::SimpleLinearActuator;
 use log::error;
 use std::time::Duration;
 use tokio::sync::mpsc::Receiver;
@@ -50,9 +50,7 @@ impl BagGripper {
     pub async fn rip_bag(&self) -> Result<(), Error> {
         for pos in self.positions.as_slice() {
             self.motor.absolute_move(*pos).await?;
-            self.motor
-                .wait_for_move(Duration::from_millis(150))
-                .await?
+            self.motor.wait_for_move(Duration::from_millis(150)).await?
         }
         Ok(())
     }

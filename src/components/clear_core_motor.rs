@@ -1,13 +1,11 @@
 use crate::components::send_recv::SendRecv;
+use crate::controllers::clear_core::{check_reply, Error, Message};
 use crate::util::utils::{ascii_to_int, make_prefix, num_to_bytes};
 use serde::Serialize;
 use std::result::Result;
 pub use std::time::Duration;
 use tokio::sync::mpsc::Sender;
 use tokio::time::MissedTickBehavior;
-use crate::controllers::clear_core::{Message, Error, check_reply};
-
-
 
 #[derive(Debug, PartialOrd, PartialEq, Serialize)]
 pub enum Status {
@@ -37,8 +35,6 @@ impl ClearCoreMotor {
         }
     }
 
-    
-
     pub async fn enable(&self) -> Result<(), Error> {
         let enable_cmd = [2, b'M', self.id + 48, b'E', b'N', 13];
         let resp = self.write(enable_cmd.as_ref()).await;
@@ -49,9 +45,11 @@ impl ClearCoreMotor {
             tick_interval.tick().await;
         }
         if self.get_status().await? == Status::Faulted {
-            Err(Error{message: "motor faulted".to_string()})
+            Err(Error {
+                message: "motor faulted".to_string(),
+            })
         } else {
-            Ok(()) 
+            Ok(())
         }
     }
 
@@ -172,7 +170,9 @@ impl ClearCoreMotor {
             50 => Ok(Status::Faulted),
             51 => Ok(Status::Ready),
             52 => Ok(Status::Moving),
-            _ => Err(Error{message: "unknown status".to_string()}),
+            _ => Err(Error {
+                message: "unknown status".to_string(),
+            }),
         }
     }
 

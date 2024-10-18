@@ -1,5 +1,5 @@
 use crate::components::send_recv::SendRecv;
-use crate::controllers::clear_core::{Message, CR, STX, check_reply, Error};
+use crate::controllers::clear_core::{check_reply, Error, Message, CR, STX};
 use crate::util::utils::{ascii_to_int, int_to_byte, num_to_bytes};
 use tokio::sync::mpsc::Sender;
 

@@ -1,5 +1,5 @@
 use ethercrab::std::{ethercat_now, tx_rx_task};
-use ethercrab::{PduStorage, Timeouts, MainDevice, MainDeviceConfig};
+use ethercrab::{MainDevice, MainDeviceConfig, PduStorage, Timeouts};
 use log::info;
 use std::error::Error;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -127,7 +127,9 @@ async fn client(
         match rx.try_recv() {
             Ok(msg) => {
                 let card_id = msg.card_id;
-                let mut sub_device = group.subdevice(&main_device, card_id).expect("Unable to get sub-device");
+                let mut sub_device = group
+                    .subdevice(&main_device, card_id)
+                    .expect("Unable to get sub-device");
                 let (i, o) = sub_device.io_raw_mut();
                 match msg.cmd {
                     Command::SetState(state) => {
@@ -150,11 +152,17 @@ async fn client(
         tick_interval.tick().await;
     }
 
-    let group = group.into_safe_op(&main_device).await.expect("OP -> SAFE-OP");
+    let group = group
+        .into_safe_op(&main_device)
+        .await
+        .expect("OP -> SAFE-OP");
 
     info!("OP -> SAFE-OP");
 
-    let group = group.into_pre_op(&main_device).await.expect("SAFE-OP -> PRE-OP");
+    let group = group
+        .into_pre_op(&main_device)
+        .await
+        .expect("SAFE-OP -> PRE-OP");
 
     info!("SAFE-OP -> PRE-OP");
 
