@@ -11,6 +11,7 @@ use tokio::time::{interval, Instant, MissedTickBehavior};
 
 
 pub struct DispenseTimeout;
+#[derive(Debug)]
 pub enum Error {
     Motor(clear_core::Error),
     Timeout
