@@ -66,6 +66,7 @@ pub async fn check_reply(reply: &[u8]) -> Result<(), Error> {
     }
 }
 
+#[derive(Clone)]
 pub struct ControllerHandle {
     motors: Motors,
     digital_inputs: Inputs,
