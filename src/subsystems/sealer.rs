@@ -31,28 +31,25 @@ impl Sealer {
         }
     }
 
-    pub async fn get_actuator_position(&mut self) -> Result<isize, Error> {
+    async fn get_actuator_position(&mut self) -> Result<isize, Error> {
         self.actuator.get_feedback().await
     }
 
-    pub async fn absolute_move(&mut self, position: isize) -> Result<(), Error> {
+    async fn absolute_move(&mut self, position: isize) -> Result<(), Error> {
         let current_pos = self.get_actuator_position().await?;
         match current_pos.cmp(&position) {
             Ordering::Greater => self.retract_actuator(position).await,
-            // Ordering::Greater => self.timed_retract_actuator(Duration::from_secs(3)).await,
             Ordering::Less => self.extend_actuator(position).await,
-            // Ordering::Less => self.timed_extend_actuator(Duration::from_secs(3)).await,
             Ordering::Equal => Ok(()),
         }
     }
-
     pub async fn timed_extend_actuator(&mut self, time: Duration) -> Result<(), Error> {
         self.actuator.actuate(HBridgeState::Pos).await?;
         tokio::time::sleep(time).await;
         self.actuator.actuate(HBridgeState::Off).await
     }
 
-    pub async fn extend_actuator(&mut self, set_point: isize) -> Result<(), Error> {
+    async fn extend_actuator(&mut self, set_point: isize) -> Result<(), Error> {
         self.actuator.actuate(HBridgeState::Pos).await?;
         let star_time = Instant::now();
         let mut tick_interval = tokio::time::interval(Duration::from_millis(5));
@@ -74,7 +71,7 @@ impl Sealer {
         self.actuator.actuate(HBridgeState::Off).await
     }
 
-    pub async fn retract_actuator(&mut self, set_point: isize) -> Result<(), Error> {
+    async fn retract_actuator(&mut self, set_point: isize) -> Result<(), Error> {
         self.actuator.actuate(HBridgeState::Neg).await?;
         let mut tick_interval = tokio::time::interval(Duration::from_millis(5));
         tick_interval.set_missed_tick_behavior(MissedTickBehavior::Skip);

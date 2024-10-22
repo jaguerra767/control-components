@@ -155,11 +155,12 @@ pub struct ScaleHandle {
 }
 
 impl ScaleHandle {
-    pub fn new(phidget_id: i32) -> Self {
+    pub fn new(phidget_id: i32) -> Result<Self, Box<dyn Error>> {
         let (req_tx, req_rx) = channel();
-        let scale = Scale::new(phidget_id, req_rx);
+        let mut scale = Scale::new(phidget_id, req_rx);
+        scale.connect()?;
         thread::spawn(move || run_scale(scale));
-        Self { sender: req_tx }
+        Ok(Self { sender: req_tx })
     }
 
     pub fn update_coefficients(&mut self, coefficients: [f64; 4]) {
