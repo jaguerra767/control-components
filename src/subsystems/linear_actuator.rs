@@ -1,7 +1,7 @@
 use crate::components::clear_core_io::{AnalogInput, DigitalOutput, HBridge, HBridgeState};
 use crate::controllers::clear_core::Error;
 pub use crate::controllers::clear_core::Message;
-use crate::controllers::ek1100_io::IOCard;
+use crate::controllers::ek1100_io::Ek1100Handler;
 
 pub struct SimpleLinearActuator {
     output: HBridge,
@@ -40,9 +40,9 @@ pub enum ActuatorCh {
     Chb,
 }
 
-#[derive(Debug)]
+
 pub enum Output {
-    EtherCat(IOCard, usize, u8),
+    EtherCat(Ek1100Handler, usize, u8),
     ClearCore(DigitalOutput),
 }
 
@@ -58,7 +58,7 @@ impl Output {
     }
 }
 
-#[derive(Debug)]
+
 pub struct RelayHBridge {
     fb_pair: (AnalogInput, Option<AnalogInput>),
     output_pair: (Output, Output),
