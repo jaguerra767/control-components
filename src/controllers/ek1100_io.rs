@@ -90,6 +90,7 @@ async fn run_client(interface: &str, mut client: Ek1100Client) {
     }
 }
 
+#[derive(Clone)]
 pub struct Ek1100Handler{
     sender: Sender<IoMsg>
 }
