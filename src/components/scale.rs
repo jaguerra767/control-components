@@ -143,7 +143,6 @@ impl Scale {
 }
 
 fn run_scale(mut scale: Scale) {
-    _ = scale.connect();
     while let Ok(message) = scale.receiver.recv() {
         scale.handle_message(message);
     }
